@@ -24,12 +24,12 @@ upstream. **The default branch is `master`, not `main`.**
 
 - Follow explicit task instructions over the default workflow below.
 - Writing the code is not finishing the task. A task is finished when
-  its changes are merged to main through a PR that passed CI and review,
+  its changes are merged to master through a PR that passed CI and review,
   or when the user explicitly accepts a different end state.
 - Start every task on current code. Fetch first, then cut the task
-  branch from origin/main — never from a stale local branch or an old
+  branch from origin/master — never from a stale local branch or an old
   checkout. To continue existing work, rebase or merge the latest
-  origin/main into it before editing. Never overwrite existing work to
+  origin/master into it before editing. Never overwrite existing work to
   update.
 - Resolve ambiguity before making consequential changes. State low-risk
   assumptions; ask when scope, safety, or expected behavior is unclear.
@@ -112,8 +112,8 @@ and verification procedure. State any inability to reproduce the failure.
 
 Unless explicitly instructed otherwise:
 
-1. Work on a focused branch cut from the latest origin/main and open a PR
-   against main before reporting the task as done.
+1. Work on a focused branch cut from the latest origin/master and open a PR
+   against master before reporting the task as done.
 2. Inspect CI results and completed review feedback for the latest commit.
    A successful reviewer job does not mean the review found no problems.
 3. Address important findings or explain why they do not apply. Handle minor
@@ -121,9 +121,10 @@ Unless explicitly instructed otherwise:
 4. Evaluate each fix in the surrounding project, add regression coverage,
    and rerun affected checks before pushing.
 5. Repeat until a stopping criterion is met.
-6. Merge without asking again once the stopping criterion is met, required
-   checks pass on the latest commit, and no unresolved blockers or required
-   human review requests remain.
+6. Merge only when K has approved merging for the task, the stopping
+   criterion is met, required checks pass on the latest commit, and no
+   unresolved blockers or required human review requests remain. Otherwise
+   report the PR as ready and ask K.
 
 ### Reviewer context limits
 
@@ -169,7 +170,7 @@ may waive review; report that waiver rather than claiming review passed.
 
 ## Ending a task
 
-- A task ends with its changes merged to main — not with code written,
+- A task ends with its changes merged to master — not with code written,
   and not with a PR merely opened. An open PR is work in progress:
   monitor CI on the latest commit, address review findings per the
   stopping rules, and merge once the criteria are met.
