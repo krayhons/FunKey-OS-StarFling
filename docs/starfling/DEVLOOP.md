@@ -162,7 +162,10 @@ device is still attached or bound, stop with Ctrl+C and
 | Reboot | `adb shell reboot` |
 
 Always `ro` before a power-off. A rootfs left read-write when the battery is
-pulled can be corrupted. Files pushed this way stay on the rootfs only until
+pulled can be corrupted. If `ro` prints `/ is still read-write` and exits 1,
+something has a file on `/` open for writing (the remount fails with
+"Resource busy"); stop it and run `ro` again, or reboot cleanly with
+`adb shell reboot`. Files pushed this way stay on the rootfs only until
 the next `.fwu` or image overwrites them, so commit the change to the repo
 and rebuild before relying on it.
 
