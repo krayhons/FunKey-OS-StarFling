@@ -158,7 +158,7 @@ device is still attached or bound, stop with Ctrl+C and
 | Make the rootfs writable / read-only again | `adb shell rw` … `adb shell ro` |
 | Replace a script | `adb shell rw && adb push FunKey/board/funkey/rootfs-overlay/usr/local/sbin/<script> /usr/local/sbin/ && adb shell ro` |
 | Replace the RetroFE binary | `adb shell rw && adb push FunKey/output/target/usr/games/retrofe /usr/games/ && adb shell ro`, then `adb shell pkill retrofe` (the `frontend` loop restarts it within about 0.5 s) |
-| Pull logs | `adb pull /mnt/frontend-last-exit.log`, `adb shell dmesg > dmesg.txt`, later `adb pull /mnt/starfling-boot/` (Phase 1.1) |
+| Pull logs | `adb pull /mnt/frontend-last-exit.log`, `adb shell dmesg > dmesg.txt`, `adb pull /mnt/starfling-boot/` (section 7) |
 | Reboot | `adb shell reboot` |
 
 Always `ro` before a power-off. A rootfs left read-write when the battery is
@@ -186,3 +186,90 @@ On a spare card flashed with the stock Starling 3.1.3 image (or StarFling
 
 Record the results, and anything that differs from this file, in a handoff
 note under `docs/starfling/handoff/`.
+
+## 7. Boot timing data and measurement rounds (Phase 1.1)
+
+### Turning boot timing on and off
+
+Boot timing is on while a folder named `starfling-boot` exists at the root
+of the share drive (`/mnt/starfling-boot` on the device). Every boot then
+writes a folder `starfling-boot/NNN/` about 40 s after power-on and shows
+**"Boot data NNN saved"** on screen. Without the folder nothing is recorded
+and the boot behaves as before.
+
+- On: MENU → MOUNT USB, create the folder `starfling-boot` in Explorer,
+  eject. Or `adb shell mkdir /mnt/starfling-boot`.
+- Off: delete the folder.
+- Bootchart (optional, never on timing boots): also create an empty file
+  `starfling-boot\bootchart` (PowerShell: `New-Item E:\starfling-boot\bootchart -ItemType File`).
+
+Each `NNN/` holds `dmesg.txt` (kernel log with all boot marks), `info.txt`
+(flags, version, cmdline), `retrofe.log` and, with bootchart on,
+`bootchart.tgz`. Numbers count up from `001`; deleting the `NNN` folders
+starts again at `001`.
+
+Make a report on the PC (WSL) from a copy of the folder:
+
+```bash
+python3 tools/starfling/boot-report.py <copy of starfling-boot> --video <your CSV> --out report.md
+```
+
+### Measurement round (K)
+
+A timing boot must have **no `adb` file**, no `usbnet` file and no
+`bootchart` file on the drive: adb and usbnet add a fixed 5 s, and bootchart
+sampling slows everything. The report skips boots with any of them.
+
+Before the round:
+
+1. Make sure the build under test is installed (the agent says which `.fwu`
+   or image).
+2. MENU → MOUNT USB. On the drive: delete `adb` if present; create the
+   folder `starfling-boot` if missing, and delete any `NNN` folders inside
+   it (keep the folder); make sure there is no `bootchart` file in it.
+   Eject on the PC, then exit MOUNT USB on the device.
+3. Charge the device and keep it at room temperature. Use the reference card
+   (Kodak 64 GB) with the same ROMs, Favorites and Recently Played as before.
+4. Copy `docs/starfling/boot-timing-template.csv` and fill in the `round`
+   column with the name the agent gives you.
+
+Menu path, 10 boots:
+
+1. Be in the Main menu, then power off. Wait 5 s.
+2. Start the phone recording at 240 fps, with the screen and the power
+   switch both in frame.
+3. Power on.
+4. As soon as the menu appears, press D-pad right once.
+5. Stop recording once the selection has moved.
+6. Wait for **"Boot data NNN saved"** (about 40 s after power-on). Write NNN
+   in the `boot` column of a `menu` row. If you miss it, wait 45 s anyway.
+7. Power off from the menu, then go to step 1 for the next boot.
+
+Game path, 10 boots (GBA via gpsp, the reference core, D10):
+
+1. Launch the reference GBA game, play a few seconds, power off in the game.
+   Wait 5 s.
+2. Start recording as above, then power on. The game resumes by itself.
+3. Stop recording once the game is moving.
+4. Wait for **"Boot data NNN saved"** (it should show over the game; if it
+   does not, wait 45 s). Write NNN in the `boot` column of a `game` row.
+5. Power off in the game (this saves it again, so the next boot resumes
+   too), then go to step 2 for the next boot.
+
+Reading the videos: for each clip, write these times in seconds, as the
+video player shows them (3 decimals), into the CSV. Leave a cell empty if it
+does not apply.
+
+| Column | Frame |
+|---|---|
+| `t_power_s` | The power switch is moved (T0) |
+| `t_screen_on_s` | The screen first lights up (optional) |
+| `t_menu_s` | The menu is fully drawn (menu path) |
+| `t_response_s` | The selection has moved after your D-pad press (menu path) |
+| `t_game_s` | First frame of moving gameplay (game path) |
+| `notes` | Anything unusual (a stall, a wrong screen, a retry) |
+
+After the round: MENU → MOUNT USB, copy the whole `starfling-boot` folder
+and the CSV to the PC (for example `C:\Users\krayh\Downloads\`), and tell
+the agent where they are. To give the agent adb again, create the `adb` file
+(section 3).
