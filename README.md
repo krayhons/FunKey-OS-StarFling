@@ -1,27 +1,35 @@
-[![Build](https://github.com/L-K-M/FunKey-OS-Starling/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/L-K-M/FunKey-OS-Starling/actions/workflows/build.yml?query=branch%3Amaster)
+[![Build](https://github.com/krayhons/FunKey-OS-StarFling/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/krayhons/FunKey-OS-StarFling/actions/workflows/build.yml?query=branch%3Amaster)
 
-# Starling 3.1.3
+# StarFling 0.1.0
 
-**FunKey OS for the [Anbernic RG Nano](https://anbernic.com/), with a Favorites
-feature added.**
+**FunKey OS for the [Anbernic RG Nano](https://anbernic.com/), tuned for fast
+boot, with Favorites.**
 
-Mark any game with **Y** and it appears under **Favorites**, the first entry in
-the main menu — one list gathering games from every system, each still launching
-with its own emulator.
+StarFling is a fork of
+[L-K-M/FunKey-OS-Starling](https://github.com/L-K-M/FunKey-OS-Starling)
+(Starling 3.1.3), which adds Favorites to FunKey OS. Mark any game with **Y**
+and it appears under **Favorites**, the first entry in the main menu — one list
+gathering games from every system, each still launching with its own emulator.
+StarFling's own goal is boot time: power-on to menu, and to a resumed game, in
+3 seconds or less. The roadmap is in
+[`docs/starfling/plan.md`](docs/starfling/plan.md), and every intentional
+difference from Starling is listed in
+[`docs/starfling/DIVERGENCE.md`](docs/starfling/DIVERGENCE.md).
 
-Everything else is stock FunKey OS. Starling is a fork of the `rg_nano` branch
+Starling is a fork of the `rg_nano` branch
 of [DrUm78/FunKey-OS](https://github.com/DrUm78/FunKey-OS/tree/rg_nano), which
 is itself a fork of
 [FunKey-Project/FunKey-OS](https://github.com/FunKey-Project/FunKey-OS). For
 what FunKey OS *is*, read
 [upstream's README](https://github.com/DrUm78/FunKey-OS/blob/rg_nano/README.md);
-this one covers only what Starling adds and how to install it.
+this one covers only what Starling and StarFling add and how to install them.
 
 > ### ⚠️ Early days
 >
 > Starling 3.0.0 booted and ran on an Anbernic RG Nano — but on exactly one, and
-> not for long. **Nothing since has been on hardware at all.** 3.1.3 builds end
-> to end in CI, which tells you it compiles and links; it cannot tell you what
+> not for long. **Nothing since has been on hardware at all.** StarFling 0.1.0
+> is Starling 3.1.3 renamed. It builds end to end in CI, which tells you it
+> compiles and links; it cannot tell you what
 > the screen does, and what changed most since 3.0.0 is exactly that. Keep a
 > card with a known-good build on it, and read [Recovery](#recovery) before you
 > flash something rather than after.
@@ -33,7 +41,7 @@ each uses a different kernel:
 
 | Upstream branch | Console | Kernel |
 | --- | --- | --- |
-| **`rg_nano`** | **Anbernic RG Nano** ← Starling | **`v1.0-rg-nano`** |
+| **`rg_nano`** | **Anbernic RG Nano** ← StarFling | **`v1.0-rg-nano`** |
 | `master` | FunKey S | `v1.0.3-funkey-s` |
 | `q36_mini` | Q36 Mini | |
 | `gba_mini` | GBA Mini | |
@@ -46,13 +54,13 @@ and nothing else** — on Recovery as well as the main OS, because both partitio
 carry their own copy of the kernel. Nothing in a checkout tells you which branch
 you are on, which is exactly how it happens.
 
-Starling's filenames therefore carry the console, the version and the fork:
+StarFling's filenames therefore carry the console, the version and the fork:
 
 | File | What it is |
 | --- | --- |
-| `FunKey-sdcard-Starling-3.1.3-RG_Nano.img` | Full SD card image — installs Starling, erasing the card |
-| `FunKey-rootfs-Starling-3.1.3-RG_Nano.fwu` | Firmware update — replaces the OS in place, keeping games and saves |
-| `FunKey-sdk-Starling-3.1.3.tar.gz` | Cross-toolchain, only needed to build software *for* the console |
+| `FunKey-sdcard-StarFling-0.1.0-RG_Nano.img` | Full SD card image — installs StarFling, erasing the card |
+| `FunKey-rootfs-StarFling-0.1.0-RG_Nano.fwu` | Firmware update — replaces the OS in place, keeping games and saves |
+| `FunKey-sdk-StarFling-0.1.0.tar.gz` | Cross-toolchain, only needed to build software *for* the console |
 
 The `FunKey-` prefix is not decoration and must not be removed: the console
 finds an update by globbing `/mnt/FunKey-*.fwu`, and that glob runs from the
@@ -103,7 +111,7 @@ plain text label; `tools/gen-favorites-artwork.py` generates one.
 Write the `.img` to an SD card — this erases everything on the card:
 
 ```bash
-sudo dd if=FunKey-sdcard-Starling-3.1.3-RG_Nano.img of=/dev/sdX bs=4M conv=fsync status=progress
+sudo dd if=FunKey-sdcard-StarFling-0.1.0-RG_Nano.img of=/dev/sdX bs=4M conv=fsync status=progress
 ```
 
 > **Check `/dev/sdX` twice.** Naming one of your own disks here destroys it.
@@ -140,7 +148,7 @@ Replaces the OS only — games, saves and favorites are kept.
 
 1. Connect the console to your computer over USB.
 2. In the launcher press **ON/OFF**, select **MOUNT USB**, press **A** twice.
-3. Copy `FunKey-rootfs-Starling-3.1.3-RG_Nano.fwu` onto the drive that appears.
+3. Copy `FunKey-rootfs-StarFling-0.1.0-RG_Nano.fwu` onto the drive that appears.
 4. **Eject the drive on your computer**, then press **A** twice on the console.
 
 Ejecting first matters: unmounting is what starts the flash, so a copy your
@@ -175,7 +183,7 @@ sudo fdisk -e /dev/diskN
 Either way you land on the recovery menu:
 
 1. Select **USB** and press **A** to mount. The console appears as a drive.
-2. Replace the `.fwu` with a known-good one — a Starling release, or
+2. Replace the `.fwu` with a known-good one — a StarFling or Starling release, or
    [DrUm78's](https://github.com/DrUm78/FunKey-OS/releases).
 3. Eject the drive on your computer, then press **A** again to unmount. That is
    what runs `swupdate`.
@@ -243,8 +251,8 @@ find it, and copies the whole log to the repository root.
 
 | File | What it is for |
 | --- | --- |
-| `FunKey-sdcard-Starling-<version>-RG_Nano.img` | A whole card. See [Install](#install) — erases the card |
-| `FunKey-rootfs-Starling-<version>-RG_Nano.fwu` | An update that keeps games, saves and favorites. See [Update](#update) |
+| `FunKey-sdcard-StarFling-<version>-RG_Nano.img` | A whole card. See [Install](#install) — erases the card |
+| `FunKey-rootfs-StarFling-<version>-RG_Nano.fwu` | An update that keeps games, saves and favorites. See [Update](#update) |
 
 `make -s print-artifacts` prints the exact names for the current version.
 
@@ -294,7 +302,7 @@ The container clones the repository itself, so this ignores your working tree
 entirely and builds `master` as published:
 
 ```bash
-curl -O https://raw.githubusercontent.com/L-K-M/FunKey-OS-Starling/master/docker/Dockerfile
+curl -O https://raw.githubusercontent.com/krayhons/FunKey-OS-StarFling/master/docker/Dockerfile
 docker build --platform linux/amd64 -t starling .
 docker run --platform linux/amd64 --name starling starling
 docker cp starling:/home/funkey/FunKey-OS/images ./images
@@ -326,8 +334,8 @@ sudo apt install make binutils build-essential gcc g++ patch bzip2 perl cpio \
   subversion python3 python3-dev python3-distutils python3-setuptools \
   ca-certificates openssh-client expect locales sudo procps
 
-git clone https://github.com/L-K-M/FunKey-OS-Starling.git
-cd FunKey-OS-Starling
+git clone https://github.com/krayhons/FunKey-OS-StarFling.git
+cd FunKey-OS-StarFling
 make sdk all
 ```
 
@@ -356,7 +364,7 @@ from:
 
 | Branch | Console | |
 | --- | --- | --- |
-| `master` | Anbernic RG Nano | Starling — tracks upstream `rg_nano` |
+| `master` | Anbernic RG Nano | StarFling — based on Starling, which tracks upstream `rg_nano` |
 | `funkey-s` | FunKey S | where Favorites was first written; tracks upstream `master`, not maintained |
 
 Favorites itself is device-independent: it touches RetroFE, collections and

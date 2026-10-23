@@ -13,7 +13,7 @@ name: Release
 #
 #  push:
 #    tags:
-#      - 'Starling-*'
+#      - 'StarFling-*'
 on:
   # Dispatch this with a tag selected as the ref; it refuses to run on a branch,
   # since a release has to point at a fixed commit. The check job below still
@@ -22,7 +22,7 @@ on:
   #
   # Cut the tag with tools/set-version.sh, which bumps every version string
   # in step, requires the CHANGELOG section this workflow reads, and pushes
-  # the Starling-* tag.
+  # the StarFling-* tag.
   workflow_dispatch:
 
 # Restrict every job, then grant write to publish alone. Omitting this block
@@ -52,13 +52,13 @@ jobs:
       # those would build for two hours and then publish a public release named
       # after it.
       #
-      # Starling-X.Y.Z, not upstream's FunKey-OS-X.Y.Z: this fork has its own
+      # StarFling-X.Y.Z, not upstream's FunKey-OS-X.Y.Z: this fork has its own
       # name and its own version line now, and a tag reading FunKey-OS-3.0.0
       # here would collide with the meaning it has upstream.
       - name: Refuse to release anything but a release tag
-        if: ${{ github.ref_type != 'tag' || !startsWith(github.ref_name, 'Starling-') }}
+        if: ${{ github.ref_type != 'tag' || !startsWith(github.ref_name, 'StarFling-') }}
         run: |
-          echo "This workflow publishes a release and must run on a Starling-* tag."
+          echo "This workflow publishes a release and must run on a StarFling-* tag."
           echo "Got $GITHUB_REF. Re-run it with a release tag selected as the ref."
           exit 1
 
@@ -145,7 +145,7 @@ jobs:
           fi
 
           cat > notes.md <<NOTES
-          **Starling** — FunKey OS for the **Anbernic RG Nano**, with Favorites.
+          **StarFling** — FunKey OS for the **Anbernic RG Nano**, based on Starling (Favorites included).
 
           > Built from the \`rg_nano\` branch. It will **not** boot a FunKey S,
           > Q36 Mini or GBA Mini — those consoles use different kernels.

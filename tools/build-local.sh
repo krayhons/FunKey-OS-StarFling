@@ -33,9 +33,9 @@
 
 set -u
 
-IMAGE=starling-build-env
-VOLUME=starling-build-state
-CONTAINER=starling-build
+IMAGE=starfling-build-env
+VOLUME=starfling-build-state
+CONTAINER=starfling-build
 SRC=/home/funkey/FunKey-OS
 # The prebuilt cross toolchain buildroot downloads is an x86_64 binary, so the
 # container has to be x86_64 even on an Apple Silicon Mac, where Docker

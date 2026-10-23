@@ -24,7 +24,6 @@ on:
       - '.github/workflows/versions.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/build_sdk.yml'
-      - '.github/workflows/zai-code-review.yml'
   pull_request:
     branches: [ rg_nano, master ]
     paths-ignore:
@@ -38,7 +37,6 @@ on:
       - '.github/workflows/versions.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/build_sdk.yml'
-      - '.github/workflows/zai-code-review.yml'
   # No branch filter here: workflow_dispatch does not support one, and the ref
   # is chosen when the run is started.
   workflow_dispatch:

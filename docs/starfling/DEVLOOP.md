@@ -1,0 +1,170 @@
+# StarFling dev loop
+
+How to build StarFling on Windows (WSL2), get it onto the RG Nano, and iterate
+over adb without reflashing. Written from the repository's scripts; **nothing
+in this file has been checked on hardware yet**. Correct it as soon as a step
+behaves differently on the device (task 0.4).
+
+## 1. Build host (WSL2, task 0.1)
+
+One-time setup:
+
+1. In PowerShell: `wsl --install -d Ubuntu-22.04`. Use 22.04, not 24.04
+   (24.04 dropped `python3-distutils`, which buildroot needs).
+2. Give WSL2 enough CPU and memory. Create `%UserProfile%\.wslconfig`:
+
+   ```ini
+   [wsl2]
+   processors=<number of cores>
+   memory=12GB
+   swap=8GB
+   ```
+
+   Also stop WSL from appending the Windows PATH: its entries contain spaces
+   (`Program Files`), and buildroot refuses to build with spaces in PATH. In
+   Ubuntu, put this in `/etc/wsl.conf`:
+
+   ```ini
+   [interop]
+   appendWindowsPath=false
+   ```
+
+   Then `wsl --shutdown` and reopen Ubuntu. WSL2's default memory cap is half
+   of RAM; parallel C++ jobs (RetroFE, emulators) can run out of memory
+   with less, which makes the build fail or crawl.
+3. In Ubuntu, install the packages from the README "Natively" section, then
+   clone into your Linux home directory, **not** under `/mnt/c`:
+
+   ```bash
+   cd ~
+   git clone --recurse-submodules https://github.com/krayhons/FunKey-OS-StarFling.git
+   cd FunKey-OS-StarFling
+   make all
+   ```
+
+   Skip `make sdk`. The build downloads a prebuilt cross-toolchain
+   (`BR2_TOOLCHAIN_EXTERNAL_URL` in the defconfigs), so `make sdk` is only for
+   publishing a toolchain.
+
+Outputs land in `images/`; `make -s print-artifacts` prints their names. If the
+build fails, `br.log` in the repo root has the full log.
+
+### Making builds faster
+
+The first build is slow because it compiles everything once. Later builds
+are much faster if you keep the build state:
+
+| What | Effect |
+|---|---|
+| Repo on the WSL ext4 filesystem (`~/`), not `/mnt/c` | The biggest single factor. `/mnt/c` goes through a network-style file bridge and is several times slower for builds |
+| `.wslconfig` `processors` set to all cores | Buildroot runs `make -j` with cores + 1 jobs by default (`BR2_JLEVEL=0`) |
+| Keep `download/` | Source tarballs are cached there (`BR2_DL_DIR`). Never `make distclean` unless you mean to fetch everything again |
+| ccache | Already on (`BR2_CCACHE=y`, cache in `~/.buildroot-ccache`). It speeds up a rebuild after a clean |
+| Rebuild one package instead of everything | `make FunKey/retrofe-rebuild update` rebuilds RetroFE and makes a new `.fwu`. Replace `retrofe` with any buildroot package name. Overlay-only changes (scripts under `rootfs-overlay/`) need only `make update` |
+| Avoid `make clean` | It wipes the Recovery and FunKey outputs, so the next build is a first build again |
+| Push single files over adb (section 4) | For scripts and the RetroFE binary, no image or `.fwu` is needed at all |
+
+Expected: first build 1.5 to 3 h, a one-package rebuild plus `.fwu` a few
+minutes.
+
+## 2. Getting a build onto the card
+
+- **Full image** (first install, or anything touching Recovery or U-Boot):
+  write `images/FunKey-sdcard-StarFling-*-RG_Nano.img` to the card from Windows
+  with balenaEtcher. This erases the card. Copy it to Windows first, for
+  example `cp images/*.img /mnt/c/Users/<you>/Downloads/`.
+- **Update** (rootfs and kernel only, keeps games and saves): MENU → MOUNT USB,
+  copy `images/FunKey-rootfs-StarFling-*-RG_Nano.fwu` to the drive, eject.
+  This needs mass storage, which is off while adb is on (see below).
+
+Keep one known-good card at all times. Recovery and the battery-latch reset
+are in the README "Recovery" section.
+
+## 3. Enabling adb
+
+adb is turned on by an empty file named `adb` at the root of the share drive
+(`/mnt/adb` on the device). At boot, `usb_gadget` sees it and starts `adb`
+instead of the mass-storage gadget.
+
+1. MENU → MOUNT USB, and open the drive in Windows.
+2. Create an empty file named exactly `adb`, with no extension. Explorer hides
+   extensions by default and will create `adb.txt`, so use PowerShell:
+   `New-Item E:\adb -ItemType File` (replace `E:` with the drive letter).
+3. Eject, unmount on the device, and power-cycle.
+
+While `/mnt/adb` exists, keep these effects in mind:
+
+- **No mass storage.** The adb gadget (`ADB+CDC`) replaces the mass-storage
+  gadget, so MOUNT USB will not show the drive on the PC. Use `adb push`/`pull`
+  instead, or remove the flag.
+- **Boot is at least 5 s slower.** `adb` runs `sleep 5` before binding the USB
+  controller, on the boot path (S10share). **Never record a boot timing with
+  the flag set** until Phase 1 task 1.3 moves this off the boot path.
+
+To turn adb off: `adb shell rm /mnt/adb`, then power-cycle. If adb is not
+reachable, use Recovery (FN+START at power-on) → USB, delete `adb` from the
+drive, then EXIT RECOVERY.
+
+## 4. Attaching the device to WSL2 (usbipd-win)
+
+One-time, in an **admin** PowerShell:
+
+```powershell
+winget install usbipd
+usbipd list                     # find the RG Nano, VID:PID 8087:011e with adb on
+usbipd bind --busid <BUSID>     # once per device and port
+```
+
+Every session, in a normal PowerShell:
+
+```powershell
+usbipd attach --wsl --busid <BUSID> --auto-attach
+```
+
+`--auto-attach` re-attaches the device after each reboot, which matters here:
+every power cycle drops the USB device and enumerates it again.
+
+In Ubuntu:
+
+```bash
+sudo apt install adb
+adb devices      # should list one device
+```
+
+If it shows `no permissions`, run `sudo adb kill-server && sudo adb start-server`.
+
+## 5. The loop
+
+| Task | Command |
+|---|---|
+| Shell | `adb shell` |
+| Make the rootfs writable / read-only again | `adb shell rw` … `adb shell ro` |
+| Replace a script | `adb shell rw && adb push FunKey/board/funkey/rootfs-overlay/usr/local/sbin/<script> /usr/local/sbin/ && adb shell ro` |
+| Replace the RetroFE binary | `adb shell rw && adb push FunKey/output/target/usr/games/retrofe /usr/games/ && adb shell ro`, then `adb shell pkill retrofe` (the `frontend` loop restarts it within about 0.5 s) |
+| Pull logs | `adb pull /mnt/frontend-last-exit.log`, `adb shell dmesg > dmesg.txt`, later `adb pull /mnt/starfling-boot/` (Phase 1.1) |
+| Reboot | `adb shell reboot` |
+
+Always `ro` before a power-off. A rootfs left read-write when the battery is
+pulled can be corrupted. Files pushed this way stay on the rootfs only until
+the next `.fwu` or image overwrites them, so commit the change to the repo
+and rebuild before relying on it.
+
+The agent can do all of this itself once the device is attached. It cannot
+press the power button or see the screen; you do the power cycles and the
+phone-video timing (see `PHASE-1-BOOT.md`, "Measurement levels").
+
+## 6. Phase 0 hardware check (task 0.2)
+
+On a spare card flashed with the stock Starling 3.1.3 image (or StarFling
+0.1.0, which is the same code renamed):
+
+- [ ] Boots to the RetroFE menu (first boot resizes partitions and takes longer)
+- [ ] D-pad and A/B respond; a game launches and exits back to the menu
+- [ ] Power off in a game, power on: the same game resumes
+- [ ] MENU → MOUNT USB shows the drive on Windows
+- [ ] FN+START at power-on enters Recovery; EXIT RECOVERY boots normally
+- [ ] With `/mnt/adb` set: `adb shell`, `adb push`, `rw`/`ro` all work from WSL2
+- [ ] Note the card model; it becomes the Phase 1 reference card
+
+Record the results, and anything that differs from this file, in a handoff
+note under `docs/starfling/handoff/`.

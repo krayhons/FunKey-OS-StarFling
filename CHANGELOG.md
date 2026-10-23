@@ -1,7 +1,23 @@
 # Changelog
 
 Release notes read the section matching their tag out of this file, so the
-headings are `## Starling-X.Y.Z` — the tag name, exactly.
+headings are `## StarFling-X.Y.Z` — the tag name, exactly. Sections headed
+`## Starling-X.Y.Z` are the history of Starling, the fork StarFling is based
+on.
+
+## StarFling-0.1.0
+
+StarFling's first version: Starling 3.1.3, renamed. No behaviour changes.
+
+- **New name and version line.** The OS, Recovery, artifacts and tags are now
+  `StarFling` and start again at 0.1.0. The `FunKey-` filename prefix is kept,
+  because installed firmware finds updates by globbing `/mnt/FunKey-*.fwu`.
+  Updating from Starling 3.1.3 with the `.fwu` works: Recovery runs `swupdate`
+  without a downgrade check, so the lower version number is accepted.
+- **Plan and dev-loop docs** under `docs/starfling/`: the roadmap, the Phase 1
+  boot-time brief, the adb dev loop and the divergence log.
+- **Starling's GLM/Z.ai review workflow is archived**, not run, along with its
+  review documents (`docs/archive/starling/`).
 
 ## Starling-3.1.3
 

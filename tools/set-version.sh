@@ -14,14 +14,14 @@
 #
 # What it does, in order:
 #   1. refuses to run with unrelated uncommitted changes in the way
-#   2. insists CHANGELOG.md has a "## Starling-<version>" section -- that
+#   2. insists CHANGELOG.md has a "## StarFling-<version>" section -- that
 #      section becomes the GitHub release notes; a stub is inserted and the
 #      script stops so the notes are written before anything is tagged
 #   3. rewrites the version in the Makefile, both os-release files, both
 #      /etc/issue files, both sw-versions files, sw-description, and the
 #      README's artifact names and title
 #   4. runs tools/check-versions.sh
-#   5. commits, tags Starling-<version> (annotated), pushes branch and tag
+#   5. commits, tags StarFling-<version> (annotated), pushes branch and tag
 #
 # Pushing the tag does NOT publish a release: release.yml is dispatch-only,
 # by design -- run it by hand, with the tag as the ref, after the build has
@@ -66,7 +66,7 @@ echo "${new}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' \
 cd "$(dirname "$0")/.." || die "cannot cd to the repository root"
 [ -f Makefile ] || die "no Makefile here -- is this the repository root?"
 
-tag="Starling-${new}"
+tag="StarFling-${new}"
 
 # The files this script owns. The dirty-tree check allows exactly these to be
 # modified (so a stopped run can be resumed) and refuses anything else, so
@@ -115,7 +115,7 @@ echo "Version: ${old} -> ${new}  (tag ${tag}, branch ${branch})"
 
 # ---------------------------------------------------------------- changelog
 
-# The release workflow reads the "## Starling-<version>" section of
+# The release workflow reads the "## StarFling-<version>" section of
 # CHANGELOG.md as the release notes. Notes are written by a person, so if the
 # section is missing, plant a stub and stop -- the tag must not exist before
 # the notes do. Re-running after writing them picks up where this left off.
@@ -162,9 +162,9 @@ for part in FunKey Recovery; do
     edit "${part}/board/funkey/rootfs-overlay/etc/os-release" \
         -e "s/^(VERSION=\")[0-9.]+ /\1${new} /" \
         -e "s/^(VERSION_ID=\")[0-9.]+(\")/\1${new}\2/" \
-        -e "s/^(PRETTY_NAME=\"Starling( Recovery)? )[0-9.]+/\1${new}/"
+        -e "s/^(PRETTY_NAME=\"StarFling( Recovery)? )[0-9.]+/\1${new}/"
     edit "${part}/board/funkey/rootfs-overlay/etc/issue" \
-        -e "s/(Starling )[0-9]+\.[0-9]+\.[0-9]+/\1${new}/"
+        -e "s/(StarFling )[0-9]+\.[0-9]+\.[0-9]+/\1${new}/"
     edit "${part}/board/funkey/rootfs-overlay/etc/sw-versions" \
         -e "s/^((rootfs|Recovery)[[:space:]]+)[0-9.]+\$/\1${new}/"
 done
@@ -176,9 +176,9 @@ edit FunKey/board/funkey/sw-description \
 # step) and titles itself with the version. Only those mechanical spots are
 # rewritten; prose that mentions old versions is history and is left alone.
 edit README.md \
-    -e "s/Starling-${oldre}-RG_Nano/Starling-${new}-RG_Nano/g" \
-    -e "s/FunKey-sdk-Starling-${oldre}\.tar\.gz/FunKey-sdk-Starling-${new}.tar.gz/g" \
-    -e "s/^# Starling ${oldre}\$/# Starling ${new}/"
+    -e "s/StarFling-${oldre}-RG_Nano/StarFling-${new}-RG_Nano/g" \
+    -e "s/FunKey-sdk-StarFling-${oldre}\.tar\.gz/FunKey-sdk-StarFling-${new}.tar.gz/g" \
+    -e "s/^# StarFling ${oldre}\$/# StarFling ${new}/"
 
 # ------------------------------------------------------------------- verify
 
@@ -189,7 +189,7 @@ sh tools/check-versions.sh || die "the bump left the version files inconsistent 
 # cutting the release should see them once and decide.
 leftovers="$(git grep -n "${oldre}" -- . \
     ':(exclude)CHANGELOG.md' ':(exclude)ANALYSIS.md' \
-    ':(exclude)glm.md' ':(exclude)kimi.md' 2>/dev/null || true)"
+    ':(exclude)docs/archive/**' 2>/dev/null || true)"
 if [ -n "${leftovers}" ]; then
     echo ""
     echo "Note: ${old} is still mentioned here (fine if it is prose about the past):"
@@ -204,7 +204,7 @@ git add -- ${managed} || die "git add failed"
 if git diff --cached --quiet; then
     echo "No file changes (already at ${new}); proceeding to tag."
 else
-    git commit -m "Starling ${new}" || die "git commit failed"
+    git commit -m "StarFling ${new}" || die "git commit failed"
 fi
 
 # Push the branch before tagging, not after. The branch push is the step that
@@ -218,7 +218,7 @@ if [ "${push}" -eq 1 ]; then
         || die "pushing ${branch} failed -- nothing was tagged; pull, re-run"
 fi
 
-git tag -a "${tag}" -m "Starling ${new}" || die "git tag failed"
+git tag -a "${tag}" -m "StarFling ${new}" || die "git tag failed"
 echo "Tagged $(git rev-parse --short HEAD) as ${tag}."
 
 # --------------------------------------------------------------------- push

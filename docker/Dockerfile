@@ -4,7 +4,7 @@
 FROM debian:bookworm-slim
 
 # Which sources to build. Defaults to this repository's master, which is the
-# Starling line for the Anbernic RG Nano, so a plain "docker build" produces an
+# StarFling line for the Anbernic RG Nano, so a plain "docker build" produces an
 # RG Nano image with Favorites. Override to build another fork or branch --
 # but note a build for one console does not boot another.
 #
@@ -13,7 +13,7 @@ FROM debian:bookworm-slim
 # redirects, but docker.yml compares the clone's origin against
 # GITHUB_REPOSITORY verbatim, so a non-canonical name fails that check.
 # If the repository is ever renamed, update this line.
-ARG FUNKEY_OS_REPO=https://github.com/L-K-M/FunKey-OS-Starling.git
+ARG FUNKEY_OS_REPO=https://github.com/krayhons/FunKey-OS-StarFling.git
 ARG FUNKEY_OS_REF=master
 
 LABEL \
