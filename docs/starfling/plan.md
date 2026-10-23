@@ -90,6 +90,9 @@ is listed separately because every later phase depends on it.
   Kodak 64 GB reference card) and record it here. **Must be done before 1.5
   and 1.6**, so a kernel or U-Boot change can be told apart from this
   upstream baseline (D8).
+  **Result (2026-10-23, K): 6 of 7 tries OK**; only the first failed. Treated
+  as a one-off. Repeat the same tries after any 1.5 or 1.6 change; a second
+  failure reopens this.
 
 ## Model and task table
 

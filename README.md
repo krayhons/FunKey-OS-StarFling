@@ -28,9 +28,9 @@ this one covers only what Starling and StarFling add and how to install them.
 >
 > StarFling 0.1.0 is Starling 3.1.3 renamed. Stock Starling 3.1.3 has been
 > checked on one Anbernic RG Nano: it boots to the menu, games launch and
-> resume, MOUNT USB works, and FN+START enters Recovery. **EXIT RECOVERY was
-> intermittent**: once it stayed in Recovery and needed a hard reset. Nothing
-> newer has been on hardware yet. Keep a card with a known-good build on it,
+> resume, MOUNT USB works, and FN+START enters Recovery. EXIT RECOVERY worked 6
+> times out of 7; the one failure stayed in Recovery and needed a hard reset.
+> Nothing newer has been on hardware yet. Keep a card with a known-good build on it,
 > and read [Recovery](#recovery) before you flash something rather than after.
 
 ## This build is for the RG Nano and no other console
