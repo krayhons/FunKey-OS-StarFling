@@ -84,6 +84,15 @@ is listed separately because every later phase depends on it.
 - 0.4 Dev loop: enable adb on the device (`touch /mnt/adb`), attach it to WSL2
   with usbipd-win, confirm `adb shell`, `adb push`, `rw`/`ro`. Document the
   loop in `docs/starfling/DEVLOOP.md`.
+- 0.5 EXIT RECOVERY baseline: on stock Starling 3.1.3, EXIT RECOVERY once
+  stayed in Recovery and needed a hard reset, then worked on the next try
+  (handoff `0.1-2026-10-23`). Measure the failure rate (about 10 tries on the
+  Kodak 64 GB reference card) and record it here. **Must be done before 1.5
+  and 1.6**, so a kernel or U-Boot change can be told apart from this
+  upstream baseline (D8).
+  **Result (2026-10-23, K): 6 of 7 tries OK**; only the first failed. Treated
+  as a one-off. Repeat the same tries after any 1.5 or 1.6 change; a second
+  failure reopens this.
 
 ## Model and task table
 
@@ -98,6 +107,7 @@ model gets stuck twice.
 | 0.2 | Verify stock Starling on hardware (K does the flashing) | Haiku | low | S | Checklist only |
 | 0.3 | Rebrand version strings, artifact names, CHANGELOG, README | Haiku | low | S | Mechanical edits |
 | 0.4 | adb dev loop and `DEVLOOP.md` | Sonnet | low | S | Small scripts and docs |
+| 0.5 | EXIT RECOVERY failure-rate baseline (K does the tries) | Haiku | low | S | Checklist and a tally |
 | 1.1 | Boot instrumentation (boot-mark tool, bootchart, RetroFE timestamps, log collector) | Sonnet | medium | M | Well-specified scripting |
 | 1.2 | Baseline measurement and bottleneck report | Opus | high | M | Judgement: reading timelines and ranking levers |
 | 1.3 | Userspace init restructure (fast path, deferred services, direct frontend launch) | Sonnet | high | M | Shell work with many regressions to guard |

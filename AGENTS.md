@@ -1,10 +1,12 @@
 # AGENTS.md
 
-Starling is FunKey OS for the Anbernic RG Nano — a Buildroot-based
-embedded Linux OS image — with a Favorites feature added. It is a fork of
-the `rg_nano` branch of DrUm78/FunKey-OS (itself a fork of
-FunKey-Project/FunKey-OS); keep Starling's delta readable against
-upstream. **The default branch is `master`, not `main`.**
+StarFling is FunKey OS for the Anbernic RG Nano, a Buildroot-based
+embedded Linux OS image, tuned for fast boot. It is a fork of
+L-K-M/FunKey-OS-Starling (which adds Favorites), itself a fork of the
+`rg_nano` branch of DrUm78/FunKey-OS (a fork of FunKey-Project/FunKey-OS).
+Keep StarFling's delta readable against upstream and record every
+intentional divergence in `docs/starfling/DIVERGENCE.md`.
+**The default branch is `master`, not `main`.**
 
 - Builds produce a full OS image under `images/` (~12 GB free disk, 1.5–3 h
   native first build, ~4 h under emulation). `tools/build-local.sh` builds
@@ -12,11 +14,14 @@ upstream. **The default branch is `master`, not `main`.**
   names. `buildroot/` is a submodule.
 - CI workflows: `build.yml` (full OS build), `build_sdk.yml`, `docker.yml`,
   `release.yml`, `retrofe-patches.yml`, `versions.yml`.
-- Version is user-facing in README (e.g. "Starling 3.1.3") and the
-  `FunKey-sdcard-Starling-*-RG_Nano.img` artifact names.
-- Nothing since 3.0.0 has run on hardware — CI green means it compiles,
-  not that the screen works. Treat hardware-facing changes accordingly
-  (see README "Early days" and "Recovery").
+- Version is user-facing in README (e.g. "StarFling 0.1.0") and the
+  `FunKey-sdcard-StarFling-*-RG_Nano.img` artifact names. Keep the
+  `FunKey-` prefix: installed firmware globs `/mnt/FunKey-*.fwu`.
+- Starling 3.1.3 (the same code as StarFling 0.1.0) was verified on K's
+  RG Nano on 2026-10-23; see `docs/starfling/DEVLOOP.md` section 6.
+  Anything after that is unverified until K tests it: CI green means it
+  compiles, not that the screen works. Treat hardware-facing changes
+  accordingly (see README "Early days" and "Recovery").
 
 <!-- shared-rules:start -->
 
@@ -24,8 +29,8 @@ upstream. **The default branch is `master`, not `main`.**
 
 - Follow explicit task instructions over the default workflow below.
 - Writing the code is not finishing the task. A task is finished when
-  its changes are merged to master through a PR that passed CI and review,
-  or when the user explicitly accepts a different end state.
+  its changes are merged to master through a PR that passed CI and that K
+  approved, or when K explicitly accepts a different end state.
 - Start every task on current code. Fetch first, then cut the task
   branch from origin/master — never from a stale local branch or an old
   checkout. To continue existing work, rebase or merge the latest
@@ -114,77 +119,22 @@ Unless explicitly instructed otherwise:
 
 1. Work on a focused branch cut from the latest origin/master and open a PR
    against master before reporting the task as done.
-2. Inspect CI results and completed review feedback for the latest commit.
-   A successful reviewer job does not mean the review found no problems.
-3. Address important findings or explain why they do not apply. Handle minor
-   findings according to the stopping rules below.
-4. Evaluate each fix in the surrounding project, add regression coverage,
-   and rerun affected checks before pushing.
-5. Repeat until a stopping criterion is met.
-6. Merge only when K has approved merging for the task, the stopping
-   criterion is met, required checks pass on the latest commit, and no
-   unresolved blockers or required human review requests remain. Otherwise
-   report the PR as ready and ask K.
-
-### Reviewer context limits
-
-The automated PR reviewer does not see the user's original prompt or
-conversation. It may suggest changes that go against or beyond what the
-user asked for. Do not implement such suggestions. Note each conflict and
-report it to the user at the end of the thread.
-
-### Automated review stopping rules
-
-Judge findings by verified impact, not the reviewer's severity label.
-Important findings concern correctness, security, data loss, broken builds,
-or materially degraded behavior/performance.
-
-Track completed review rounds and consecutive rounds without important
-findings. Reruns of the same revision and integration failures do not count.
-
-- No applicable actionable feedback: finish immediately.
-- First minor-only round: optionally fix worthwhile, low-risk findings.
-  Do not manufacture another push merely to obtain another review.
-- Two consecutive rounds without important findings: stop responding to
-  automated nitpicks, even if actionable minor suggestions remain.
-  Defer worthwhile leftovers rather than continuing the cycle.
-- A confirmed important finding resets the minor-only streak. Address it
-  and verify the fix before continuing.
-
-After ten completed rounds, enter stabilization:
-
-- Stop optional cleanup, refactoring, and nitpick fixes.
-- One completed review without confirmed important findings is sufficient
-  to finish, even if minor suggestions remain.
-- Continue only for confirmed important defects. If resolving them stalls,
-  report the blockers rather than continuing indefinitely.
-
-These limits end optional automated-feedback work. They do not waive
-confirmed blockers, unresolved human review requests, or required checks.
-
-### Reviewer integration failures
-
-After two consecutive reviewer-integration failures, stop and report the
-review gap. Do not treat failures as approval. An explicit user instruction
-may waive review; report that waiver rather than claiming review passed.
+2. Inspect CI results for the latest commit. Fix failures caused by the
+   change; report unrelated or infrastructure failures rather than
+   working around them.
+3. Merge only when K has approved merging for the task and required checks
+   pass on the latest commit. Otherwise report the PR as ready and ask K.
 
 ## Ending a task
 
-- A task ends with its changes merged to master — not with code written,
-  and not with a PR merely opened. An open PR is work in progress:
-  monitor CI on the latest commit, address review findings per the
-  stopping rules, and merge once the criteria are met.
+- A task ends with its changes merged to master, not with code written
+  and not with a PR merely opened.
 - Never finish with uncommitted changes or unpushed commits in the
   worktree. Commit, push, and open or update the PR first.
-- If a step is impossible (missing push access, CI failure, reviewer
-  outage), report the exact blocker instead. Never present unreviewed or
-  unmerged work as finished.
+- If a step is impossible (missing push access, CI failure), report the
+  exact blocker instead. Never present unmerged work as finished.
 - Before finishing, confirm: the requested behavior is implemented
   without unrelated changes; relevant checks pass on the latest code;
-  important review findings are addressed or rejected with reasons;
-  deferred suggestions, remaining risks, and validation gaps are
-  disclosed.
+  remaining risks and validation gaps are disclosed.
 - The final response states where the work stands: branch, PR, CI
-  status, review rounds completed, and whether it is merged.
-
-<!-- shared-rules:end -->
+  status, and whether it is merged.

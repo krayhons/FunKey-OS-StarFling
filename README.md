@@ -26,13 +26,12 @@ this one covers only what Starling and StarFling add and how to install them.
 
 > ### ⚠️ Early days
 >
-> Starling 3.0.0 booted and ran on an Anbernic RG Nano — but on exactly one, and
-> not for long. **Nothing since has been on hardware at all.** StarFling 0.1.0
-> is Starling 3.1.3 renamed. It builds end to end in CI, which tells you it
-> compiles and links; it cannot tell you what
-> the screen does, and what changed most since 3.0.0 is exactly that. Keep a
-> card with a known-good build on it, and read [Recovery](#recovery) before you
-> flash something rather than after.
+> StarFling 0.1.0 is Starling 3.1.3 renamed. Stock Starling 3.1.3 has been
+> checked on one Anbernic RG Nano: it boots to the menu, games launch and
+> resume, MOUNT USB works, and FN+START enters Recovery. EXIT RECOVERY worked 6
+> times out of 7; the one failure stayed in Recovery and needed a hard reset.
+> Nothing newer has been on hardware yet. Keep a card with a known-good build on it,
+> and read [Recovery](#recovery) before you flash something rather than after.
 
 ## This build is for the RG Nano and no other console
 
@@ -233,7 +232,7 @@ and the container clones it itself on the first run.
 **What the first run does**, in order, so a long silence is legible rather than
 worrying:
 
-1. Builds the `starling-build-env` image from `docker/Dockerfile` — several
+1. Builds the `starfling-build-env` image from `docker/Dockerfile` — several
    minutes, once ever.
 2. Creates a container backed by a Docker volume, and copies your working tree
    into it. The build's output lives in that volume, which is what makes the
@@ -303,9 +302,9 @@ entirely and builds `master` as published:
 
 ```bash
 curl -O https://raw.githubusercontent.com/krayhons/FunKey-OS-StarFling/master/docker/Dockerfile
-docker build --platform linux/amd64 -t starling .
-docker run --platform linux/amd64 --name starling starling
-docker cp starling:/home/funkey/FunKey-OS/images ./images
+docker build --platform linux/amd64 -t starfling .
+docker run --platform linux/amd64 --name starfling starfling
+docker cp starfling:/home/funkey/FunKey-OS/images ./images
 ```
 
 > Bind-mounting your tree over the container's (`-v "$PWD":/home/funkey/FunKey-OS`)
