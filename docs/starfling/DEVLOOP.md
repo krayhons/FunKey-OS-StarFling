@@ -158,13 +158,14 @@ phone-video timing (see `PHASE-1-BOOT.md`, "Measurement levels").
 On a spare card flashed with the stock Starling 3.1.3 image (or StarFling
 0.1.0, which is the same code renamed):
 
-- [ ] Boots to the RetroFE menu (first boot resizes partitions and takes longer)
-- [ ] D-pad and A/B respond; a game launches and exits back to the menu
-- [ ] Power off in a game, power on: the same game resumes
-- [ ] MENU → MOUNT USB shows the drive on Windows
-- [ ] FN+START at power-on enters Recovery; EXIT RECOVERY boots normally
+- [Y] Boots to the RetroFE menu (first boot resizes partitions and takes longer)
+- [Y] D-pad and A/B respond; a game launches and exits back to the menu
+- [Y] Power off in a game, power on: the same game resumes
+- [Y] MENU → MOUNT USB shows the drive on Windows
+- [Y] FN+START at power-on enters Recovery; 
+- [N]  EXIT RECOVERY boots normally (stuck on recovery and needs hard reset to reboot)
 - [ ] With `/mnt/adb` set: `adb shell`, `adb push`, `rw`/`ro` all work from WSL2
-- [ ] Note the card model; it becomes the Phase 1 reference card
+- [Y] Note the card model; it becomes the Phase 1 reference card - Card is Kodak64g
 
 Record the results, and anything that differs from this file, in a handoff
 note under `docs/starfling/handoff/`.
