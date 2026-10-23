@@ -217,6 +217,28 @@ Make a report on the PC (WSL) from a copy of the folder:
 python3 tools/starfling/boot-report.py <copy of starfling-boot> --video <your CSV> --out report.md
 ```
 
+### Agent-run rounds (autoround)
+
+For changes that do not need a human at the screen, the agent can run a
+round itself over adb, with adb off during the boots:
+
+```bash
+adb shell 'echo 10 > /mnt/starfling-boot/autoround; rm /mnt/adb; sync; reboot'
+```
+
+Each boot saves its data, lowers the count and reboots (about 40 s per
+boot). The last one recreates `/mnt/adb`, so adb is back on the boot
+after; that boot is also saved but has `adb=1` and the report skips it.
+For a game round, start with a resumed game running: the collector puts
+Instant Play's file back before each reboot, so every boot resumes the
+same savestate.
+
+These are warm reboots, not power-ons. On the kernel clock they match
+K's cold boots (menu accepts input 3.93 and 4.04 s vs a cold median of
+3.94 s), but they say nothing about pre-kernel time. If a boot hangs, the
+round stops there, without adb; K then deletes `autoround` and recreates
+`adb` over MOUNT USB (or FN+START → USB MOUNT).
+
 ### Measurement round (K)
 
 A timing boot must have **no `adb` file**, no `usbnet` file and no
