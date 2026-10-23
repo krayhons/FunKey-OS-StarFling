@@ -1,9 +1,10 @@
 # StarFling dev loop
 
 How to build StarFling on Windows (WSL2), get it onto the RG Nano, and iterate
-over adb without reflashing. Written from the repository's scripts; **nothing
-in this file has been checked on hardware yet**. Correct it as soon as a step
-behaves differently on the device (task 0.4).
+over adb without reflashing. Written from the repository's scripts, then
+checked on K's RG Nano on 2026-10-23: sections 3 to 6 match the device except
+where they say otherwise. Correct this file as soon as a step behaves
+differently on the device.
 
 ## 1. Build host (WSL2, task 0.1)
 
@@ -105,33 +106,49 @@ To turn adb off: `adb shell rm /mnt/adb`, then power-cycle. If adb is not
 reachable, use Recovery (FN+START at power-on) → USB, delete `adb` from the
 drive, then EXIT RECOVERY.
 
-## 4. Attaching the device to WSL2 (usbipd-win)
+## 4. Reaching the device from WSL2 (Windows adb.exe)
 
-One-time, in an **admin** PowerShell:
+Checked on K's RG Nano on 2026-10-23 (Starling 3.1.3): use Google's Windows
+`adb.exe` and call it from WSL. No USB passthrough is needed, and adb comes
+back by itself after every reboot (about 10 s after `adb shell reboot`).
 
-```powershell
-winget install usbipd
-usbipd list                     # find the RG Nano, VID:PID 8087:011e with adb on
-usbipd bind --busid <BUSID>     # once per device and port
-```
+One-time:
 
-Every session, in a normal PowerShell:
+1. Download [platform-tools for Windows](https://developer.android.com/tools/releases/platform-tools)
+   and unzip it to `C:\platform-tools`. With `/mnt/adb` set, Device Manager
+   shows the RG Nano as "ADB Interface" plus a CDC serial port (COM4 on K's
+   PC); no driver install was needed.
+2. In Ubuntu, add an alias to `~/.bashrc`:
 
-```powershell
-usbipd attach --wsl --busid <BUSID> --auto-attach
-```
+   ```bash
+   alias adb=/mnt/c/platform-tools/adb.exe
+   ```
 
-`--auto-attach` re-attaches the device after each reboot, which matters here:
-every power cycle drops the USB device and enumerates it again.
+3. `adb devices` should list one device (K's: `12c000014ae74908`).
 
-In Ubuntu:
+Notes:
 
-```bash
-sudo apt install adb
-adb devices      # should list one device
-```
+- `adb.exe` is a Windows program, so local paths in `adb push`/`pull` must be
+  Windows paths. For files in the WSL tree, convert with `wslpath -w`:
+  `adb push "$(wslpath -w FunKey/output/target/usr/games/retrofe)" /usr/games/`.
+  `\\wsl.localhost\...` paths work. `adb pull` into the current WSL directory
+  also works.
+- Run only one adb server. Do not also install or start Linux `adb` in WSL;
+  both use port 5037.
 
-If it shows `no permissions`, run `sudo adb kill-server && sudo adb start-server`.
+### usbipd-win does not work with this device
+
+`usbipd attach --wsl` (usbipd-win 5.x, WSL kernel 6.18) gets as far as
+enumerating the device in WSL (`cdc_acm ... ttyACM0`), then the USB/IP
+connection closes within about 40 ms. The device then disappears from Windows
+USB entirely and stays gone until it is rebooted. With `--auto-attach` this
+repeats on every boot. The gadget scripts (`usb_gadget`, `adb`, `S10share`) are
+unchanged from upstream FunKey (2020 to 2022) and the kernel is DrUm78's
+`v1.0-rg-nano`, so this is probably not Starling-specific; the likely cause is
+the device's gadget not surviving the USB reset that attach performs. Not
+investigated further, because Windows `adb.exe` covers the dev loop. If a
+device is still attached or bound, stop with Ctrl+C and
+`usbipd unbind --busid <BUSID>` in an admin PowerShell.
 
 ## 5. The loop
 
@@ -149,7 +166,7 @@ pulled can be corrupted. Files pushed this way stay on the rootfs only until
 the next `.fwu` or image overwrites them, so commit the change to the repo
 and rebuild before relying on it.
 
-The agent can do all of this itself once the device is attached. It cannot
+The agent can do all of this itself once `adb devices` lists the device. It cannot
 press the power button or see the screen; you do the power cycles and the
 phone-video timing (see `PHASE-1-BOOT.md`, "Measurement levels").
 
@@ -164,7 +181,7 @@ On a spare card flashed with the stock Starling 3.1.3 image (or StarFling
 - [Y] MENU → MOUNT USB shows the drive on Windows
 - [Y] FN+START at power-on enters Recovery; 
 - [~] EXIT RECOVERY boots normally (intermittent: first attempt stuck on recovery and needed a hard reset; second attempt rebooted normally)
-- [ ] With `/mnt/adb` set: `adb shell`, `adb push`, `rw`/`ro` all work from WSL2
+- [Y] With `/mnt/adb` set: `adb shell`, `adb push`, `rw`/`ro` all work from WSL2 (via Windows `adb.exe`, section 4; usbipd fails)
 - [Y] Note the card model; it becomes the Phase 1 reference card - Card is Kodak64g
 
 Record the results, and anything that differs from this file, in a handoff
