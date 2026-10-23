@@ -1,10 +1,11 @@
 # StarFling boot baseline (Phase 1 task 1.2)
 
-**Status: draft.** The timing round (10 menu + 10 game boots, adb off, phone
-video) has not run yet. Everything below comes from boots with adb on
-(which adds a fixed ~5.5 s in S10share, excluded here) and from experiments
-run live over adb on 2026-10-23. Numbers marked *(prelim.)* will be replaced
-by medians from K's round; the confirmed experiments stand on their own.
+**Status: device side measured, video pending.** K's round on
+2026-10-23: 8 menu boots and 6 game boots (Instant Play resume of Anguna on
+gpsp), all with adb, usbnet and bootchart off (boots `001`–`014`). The
+device-side numbers below are medians of those boots on the kernel clock.
+Wall-clock numbers (power-on to menu/game, pre-kernel time) need K's video
+times. The experiments in "Confirmed by experiment" were run live over adb.
 
 Build: StarFling 0.1.0 + task 1.1 instrumentation (`.fwu` `757848ea…`,
 PR #3), Kodak 64 GB reference card, theme RetroRoomCovers, `firstCollection
@@ -22,35 +23,43 @@ PR #3), Kodak 64 GB reference card, theme RetroRoomCovers, `firstCollection
 
 ## Results from the timing round
 
-*(Pending K's round. Fill in: median power-on → menu drawn, → menu
-responds, → game moving; pre-kernel median; per-stage medians.)*
-
-| Measure (median of 10) | Menu path | Game path |
+| Measure (median) | Menu path (n=8) | Game path (n=6) |
 |---|---|---|
-| Power-on → menu drawn / game moving (video) | | |
-| Power-on → menu responds (video) | | — |
-| Pre-kernel (video − kernel clock) | | (menu value) |
-| Kernel clock → menu accepts input | | — |
+| Power-on → menu drawn / game moving (video) | *pending CSV* | *pending CSV* |
+| Power-on → menu responds (video) | *pending CSV* | — |
+| Pre-kernel (video − kernel clock at menu first frame) | *pending CSV* | (menu value) |
+| Kernel clock → menu first frame | 3.661 s | — |
+| Kernel clock → menu accepts input | **3.943 s** | — |
+| Kernel clock → game exec | — | **2.273 s** |
 
-## Stage breakdown, menu path *(prelim., boot 002, adb on)*
+Boot-to-boot spread is small: most steps vary by under 10 ms across boots.
 
-Times on the kernel clock; S10share's adb `sleep 5` excluded.
+## Stage breakdown (medians, kernel clock, adb off)
 
-| Stage | From → to | ms | Notes |
-|---|---|---:|---|
-| Pre-kernel | power-on → kernel clock 0 | ? | From video only |
-| Kernel | clock 0 → init | 573 | fbtft panel init ~146, USB host EHCI/OHCI ~100, pinctrl/serial ~76 |
-| sysinit | init → rcS start | 208 | `mount -a` (FAT) ~115, `swapon` ~53, syslogd/klogd, ~12 forked commands |
-| rcS without S10share | rcS start → rcS end | ~370 | S50alsa-utils 113, S02sysctl 41, S01first_boot 38, S20urandom 35 |
-| S10share without adb | | ? | Normal-boot cost unknown until the round |
-| Login + `.profile` | rcS end → frontend exec | 287 | `.profile` start → volume/brightness restored 182 (`volume set` alone ~120) |
-| RetroFE exec → `main` | | 338 | Cold page-in of 22 libraries (~10 MB); 52 ms warm |
-| Config import | `main` → config imported | 171 | 58 ms warm |
-| SDL init | → sdl initialized | 874 | ~750 is the audio amplifier power-up sleep (confirmed below) |
-| GStreamer init | → video initialized | 241 | Video is disabled (`videoEnable = no`) and unused by every layout |
-| Splash, init thread, layout, fonts, collection, menu build | → menu first frame | ~380 | Fonts ~90 |
-| Menu onEnter animation | first frame → accepts input | 268 | Theme-dependent |
-| **Kernel clock → menu accepts input** | | **~3.7 s + S10share** | |
+| Stage | From → to | Menu ms | Game ms | Notes |
+|---|---|---:|---:|---|
+| Pre-kernel | power-on → kernel clock 0 | ? | ? | From video |
+| Kernel | clock 0 → init | 558 | 558 | fbtft panel init ~146, USB host EHCI/OHCI ~100, pinctrl/serial ~76 |
+| sysinit | init → rcS start | 209 | 207 | `mount -a` (FAT) ~115, `swapon` ~53, ~12 forked commands |
+| S10share | | 343 | 344 | USB gadget setup, ~20 `mkdir -p`, `.fwu` check |
+| Other S-scripts | | 361 | 365 | S50alsa-utils 111, S01first_boot 40, S02sysctl 40, S20urandom 29, S13 23, S40 20, S12 18, S04 17, S03 16, S11 14, S49 13, rest ~25 |
+| Login + `.profile` to volume/brightness restored | rcS end → restored | 213 | 211 | `volume set` alone ~120 |
+| `assembly_tests` | | 14 | 13 | |
+| `instant_play load` | → frontend exec / game exec | 59 | **573** | Game: unexplained 0.57 s before the emulator starts (see below) |
+| RetroFE exec → `main` | | 346 | — | Cold page-in of 22 libraries; 52 ms warm |
+| Config import | `main` → config imported | 168 | — | 58 ms warm |
+| SDL init | → sdl initialized | 866 | — | ~750 is the audio amp power-up sleep |
+| GStreamer init | → video initialized | 222 | — | Video off and unused |
+| Splash, init thread, layout, fonts, collection, menu build | → menu first frame | 302 | — | Fonts ~53 |
+| Menu onEnter animation | first frame → accepts input | 278 | — | |
+| Emulator start → gameplay | game exec → game moving | — | ? | From video; includes the ~0.75 s amp sleep (measured live) |
+
+**Game path, unexplained 573 ms.** Between `assembly_tests` and the
+`game exec` mark, `instant_play load` only runs `umount /opk` (nothing
+mounted), `rm`, `keymap resume`, two `echo`/`cat` and a `mv`. The kernel log
+is silent in that window and no OPK is mounted (gpsp is built in). Prime
+suspect: `keymap resume` writes to fkgpiod's FIFO, and that write blocks
+until fkgpiod reads it. To confirm with a mark or a live test over adb.
 
 ## Confirmed by experiment (2026-10-23, live over adb)
 
@@ -85,23 +94,25 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
    `S13system-stats` 20; `keymap default` 30; `instant_play load` with no
    game 20; `fw_printenv` 10; `hwclock` 10. A bare fork+exec is ~4.5 ms.
 
-## Top time sinks *(prelim.)*
+## Top time sinks (measured medians, adb off)
 
-| # | Sink | Est. ms (menu) | Path(s) |
-|---|---|---:|---|
-| 1 | Audio amp power-up sleep (kernel `msleep(700)` on first playback) | 750 | menu, game (both measured) |
-| 2 | Kernel init (fbtft, USB host, probe) | 573 | both |
-| 3 | RetroFE splash → menu build (layout, fonts, collection) | ~380 | menu |
-| 4 | RetroFE exec, cold library page-in | 338 | menu |
-| 5 | Login + `.profile` (volume/brightness via scripts, `mkdir -p`) | 287 | both |
-| 6 | Menu onEnter animation before input | 268 | menu |
-| 7 | GStreamer pre-init with video disabled | 241 | menu |
-| 8 | sysinit (`mount -a`, `swapon`, forks) | 208 | both |
-| 9 | Config import (cold reads) | 171 | menu |
-| 10 | `alsactl restore` (S50alsa-utils) | 113 | both |
-| — | Pre-kernel, S10share without adb | ? | both; from the round |
+| # | Sink | Menu ms | Game ms |
+|---|---|---:|---:|
+| 1 | Audio amp power-up sleep (kernel `msleep(700)` on first playback) | ~750 | ~750 (live test) |
+| 2 | `instant_play load` before the emulator starts (unexplained) | — | 573 |
+| 3 | Kernel init (fbtft, USB host, probe) | 558 | 558 |
+| 4 | Init scripts other than S10share (S50alsa-utils 111 the largest) | 361 | 365 |
+| 5 | RetroFE exec, cold library page-in | 346 | — |
+| 6 | S10share (USB gadget, `mkdir -p`s) | 343 | 344 |
+| 7 | RetroFE splash → menu built (layout, fonts, collection) | 302 | — |
+| 8 | Menu onEnter animation before input | 278 | — |
+| 9 | GStreamer pre-init with video off | 222 | — |
+| 10 | Login + `.profile` (`volume set` ~120) | 213 | 211 |
+| 11 | sysinit (`mount -a`, `swapon`, forks) | 209 | 207 |
+| 12 | RetroFE config import (cold reads) | 168 | — |
+| — | Pre-kernel; emulator start → gameplay | ? | ? |
 
-## Levers, re-ranked *(prelim.)*
+## Levers, re-ranked
 
 | Lever | Task | Est. saving | Confidence |
 |---|---|---:|---|
@@ -111,7 +122,9 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 | Prefetch RetroFE and its libraries in the background during kernel/sysinit idle time, or trim libraries | 1.3 / 1.4 | 0.1–0.2 s | Medium |
 | Shorter or no onEnter animation for the first menu | 1.4 | up to 0.27 s | Medium (theme) |
 | Kernel trim: USB host off the boot path (1.5a), fbtft init, logo | 1.5 | 0.1–0.3 s | Medium |
-| Pre-kernel (U-Boot) | 1.6 | ? | After the round |
+| Find and remove the 0.57 s stall in `instant_play load` (suspect: blocking FIFO write in `keymap resume`) | 1.7 | up to 0.57 s game | Medium (measured gap, cause unconfirmed) |
+| USB gadget setup off the boot path (S10share), `mkdir -p` only when missing | 1.3 | 0.2–0.3 s | Medium |
+| Pre-kernel (U-Boot) | 1.6 | ? | After the video numbers |
 
 ## Other observations
 
