@@ -230,8 +230,13 @@ Each boot saves its data, lowers the count and reboots (about 40 s per
 boot). The last one recreates `/mnt/adb`, so adb is back on the boot
 after; that boot is also saved but has `adb=1` and the report skips it.
 For a game round, start with a resumed game running: the collector puts
-Instant Play's file back before each reboot, so every boot resumes the
-same savestate.
+Instant Play's file back before each reboot, so every boot takes the
+Instant Play path into the same game. Only the first boot resumes a
+savestate, though: picoarch deletes its autosave when it resumes, and the
+reboot does not save a new one. Later boots start the game fresh, which
+is fine for anything before the core runs but not for savestate-load
+time. To get back to the menu afterwards, `kill -9` the emulator: a plain
+`kill` makes picoarch save and power off, like the power button.
 
 These are warm reboots, not power-ons. On the kernel clock they match
 K's cold boots (menu accepts input 3.93 and 4.04 s vs a cold median of
