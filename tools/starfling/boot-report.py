@@ -181,7 +181,7 @@ def boot_section(boot_id, info, events, video_row):
     if info.get("NAME") or info.get("VERSION_ID"):
         out.append(f"Build: {info.get('NAME', '?')} {info.get('VERSION_ID', '?')}\n")
 
-    out.append("| t (s) | step | step took (ms) |")
+    out.append("| t (s) | mark | ms to next mark |")
     out.append("|---:|---|---:|")
     timeline = [(0.0, "kernel: clock starts")] + events
     for index, (seconds, label) in enumerate(timeline):
@@ -229,7 +229,7 @@ def summary_section(path, samples):
             if index + 1 < len(timeline):
                 took[label].append(timeline[index + 1][0] - seconds)
 
-    out.append("| step | median t (s) | median took (ms) | min-max took (ms) | n |")
+    out.append("| mark | median t (s) | median ms to next mark | min-max ms to next mark | n |")
     out.append("|---|---:|---:|---:|---:|")
     for label in order:
         durations = took[label]
