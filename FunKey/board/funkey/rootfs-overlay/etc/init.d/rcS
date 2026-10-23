@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# StarFling: Buildroot's rcS (package/initscripts) plus one boot mark at the
+# start of each init script. The end of one script is the start of the next,
+# so a second mark per script would add cost and no information. See
+# /usr/local/lib/bootmark.
+
+source /usr/local/lib/bootmark
+bootmark_init
+bootmark "rcS start"
+
+# Start all init scripts in /etc/init.d
+# executing them in numerical order.
+#
+for i in /etc/init.d/S??* ;do
+
+     # Ignore dangling symlinks (if any).
+     [ ! -f "$i" ] && continue
+
+     bootmark "${i##*/}"
+
+     case "$i" in
+	*.sh)
+	    # Source shell script for speed.
+	    (
+		trap - INT QUIT TSTP
+		set start
+		. $i
+	    )
+	    ;;
+	*)
+	    # No sh extension, so fork subprocess.
+	    $i start
+	    ;;
+    esac
+done
+
+bootmark "rcS end"
