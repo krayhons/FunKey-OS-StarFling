@@ -306,3 +306,8 @@ phase item, logged in the backlog.
 - Emulators reopen their audio device when a USB-C dongle is plugged or
   unplugged mid-game (per-core phases).
 - Lighter launcher (later phase).
+- Leaving Recovery sometimes hangs on an inverted (black/white swapped) boot
+  logo and needs a power cycle: 2 of about 9 exits so far, including the
+  automatic restart after a `.fwu` install (`plan.md`, task 0.5). Upstream
+  behaviour. Look at it before or with 1.5/1.6; a serial console (Level 2)
+  would show where it stops.

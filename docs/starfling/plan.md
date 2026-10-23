@@ -93,6 +93,15 @@ is listed separately because every later phase depends on it.
   **Result (2026-10-23, K): 6 of 7 tries OK**; only the first failed. Treated
   as a one-off. Repeat the same tries after any 1.5 or 1.6 change; a second
   failure reopens this.
+  **Second failure (2026-10-23, task 1.1): reopened.** Installing the 1.1
+  `.fwu` (auto-update at boot) completed, but the restart out of Recovery
+  hung on an inverted (black/white swapped) boot logo with no text for over
+  15 minutes. After a power cycle, FN+START, USB UNMOUNT and EXIT RECOVERY,
+  the new system booted normally; several later reboots, with and without
+  boot timing, were fine. Recovery and U-Boot are unchanged from Starling
+  3.1.3, so this is still upstream behaviour, now 2 failures in about 9
+  Recovery exits. Not in Phase 1 scope until 1.5/1.6; logged in the
+  PHASE-1-BOOT backlog.
 
 ## Model and task table
 
