@@ -5,6 +5,7 @@
 
 SELF=${SELF:-$(basename $0)}
 LOCK_FILE=/var/lock/share.lock
+USB_GADGET_DELAY_S=3
 
 source /usr/local/lib/utils
 source usb_gadget
@@ -23,6 +24,17 @@ unmount_share () {
 }
 
 # Mount a share locally
+# Create the given directories under a base directory, forking mkdir only
+# for those that do not exist yet
+ensure_dirs () {
+    local base="${1}"
+    shift
+    local dir
+    for dir in "$@"; do
+	[ -d "${base}/${dir}" ] || mkdir -p "${base}/${dir}"
+    done
+}
+
 mount_share () {
 
     mount | grep -q /dev/mmcblk0p4
@@ -47,10 +59,12 @@ mount_share () {
 	mount /mnt/ || die 4 "cannot mount backing store partition"
     fi
 
-    # Create the directory structure if required
+    # Create the directory structure if required. Test each directory with
+    # the shell's own [ -d ] and run mkdir only for the missing ones: the
+    # same result as before, without a mkdir fork on every boot.
     #(cd /mnt; mkdir -p "Applications" "Emulators" "Games" "Atari lynx" "Game Boy" "Game Boy Color" "Game Boy Advance" "Game Gear" "Neo Geo Pocket" "NES" "PS1" "PS1/bios" "Sega Genesis" "Sega Master System" "SNES" "WonderSwan" "PCE-TurboGrafx")
-    (cd /mnt; mkdir -p "PICO-8" "Pokemon Mini" "Final Burn Alpha 2012" "MAME 2000" "Libretro/cores" "FunKey/.picoarch/system" "Native games" "Applications" "Emulators" "Atari lynx" "Game Boy" "Game Boy Color" "Game Boy Advance" "Game Gear" "Neo Geo Pocket" "NES" "PS1" "Sega Genesis" "Sega Master System" "SNES" "WonderSwan" "PCE-TurboGrafx")
-    (mkdir -p "/mnt/FunKey/.retrofe/collections" && cd /mnt/FunKey/.retrofe/collections && mkdir -p "PICO-8" "Pokemon Mini" "Final Burn Alpha 2012" "MAME 2000" "Atari lynx" "Game Boy" "Game Boy Color" "Game Boy Advance" "Game Gear" "Neo Geo Pocket" "NES" "PS1" "Sega Genesis" "Sega Master System" "SNES" "WonderSwan" "PCE-TurboGrafx" "Libretro" "Native games" "Main")
+    ensure_dirs /mnt "PICO-8" "Pokemon Mini" "Final Burn Alpha 2012" "MAME 2000" "Libretro/cores" "FunKey/.picoarch/system" "Native games" "Applications" "Emulators" "Atari lynx" "Game Boy" "Game Boy Color" "Game Boy Advance" "Game Gear" "Neo Geo Pocket" "NES" "PS1" "Sega Genesis" "Sega Master System" "SNES" "WonderSwan" "PCE-TurboGrafx"
+    ensure_dirs /mnt/FunKey/.retrofe/collections "PICO-8" "Pokemon Mini" "Final Burn Alpha 2012" "MAME 2000" "Atari lynx" "Game Boy" "Game Boy Color" "Game Boy Advance" "Game Gear" "Neo Geo Pocket" "NES" "PS1" "Sega Genesis" "Sega Master System" "SNES" "WonderSwan" "PCE-TurboGrafx" "Libretro" "Native games" "Main"
 
     # Check if there is a firmware update file. Test each glob match itself:
     # "[ -f /mnt/FunKey-*.fwu ]" receives one argument per match, so with two
@@ -85,8 +99,13 @@ init_share () {
     fi
     touch ${LOCK_FILE}
 
-    # Initialize the USB gadget
-    init_usb_gadget
+    # Initialize the USB gadget in the background, after the frontend or
+    # game is up: only MOUNT USB and adb use it, and with adb it includes a
+    # fixed "sleep 5". On the boot path it cost ~0.1 s, and 5 s more with
+    # adb. Started right away, even at nice 19, it slowed the init scripts
+    # after it (module loading and, with a cable in, USB enumeration run
+    # in the kernel at normal priority), hence the delay (StarFling 1.3).
+    nice -n 19 sh -c "sleep ${USB_GADGET_DELAY_S}; source /usr/local/sbin/usb_gadget; init_usb_gadget" >/dev/null 2>&1 &
 
     # Mount the backing store partition locally
     mount_share
