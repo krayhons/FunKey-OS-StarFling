@@ -16,6 +16,14 @@
 # Startup the system
 ::sysinit:/bin/cat /etc/issue
 ::sysinit:/bin/mount -t proc proc /proc
+# Power up the audio codec's output amplifier in the background. Its
+# driver sleeps 700 ms on power-up while holding the card's DAPM lock,
+# which otherwise lands on the first app to play sound (RetroFE or the
+# resumed emulator, ~0.75 s) and on any mixer access meanwhile. Started
+# this early, it is done before S50alsa-utils; the amp then stays up for
+# the codec's pmdown_time (5 s), long enough for the frontend or game.
+# tinyplay, not aplay: alsa-lib's config parsing costs ~130 ms of CPU.
+null::sysinit:/bin/sh -c "tinyplay /usr/share/starfling/silence-10ms.wav -D 0 -d 0 &"
 #::sysinit:/bin/mount -o remount,rw /
 ::sysinit:/bin/mkdir -p /dev/pts /dev/shm
 ::sysinit:/bin/mount -a

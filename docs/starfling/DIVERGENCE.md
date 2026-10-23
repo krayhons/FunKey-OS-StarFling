@@ -9,3 +9,4 @@ change; link the PR.
 |---|---|---|---|
 | Branding | Name, version scheme (`StarFling-X.Y.Z`, restarting at 0.1.0), repo URLs. The `FunKey-` artifact prefix is kept | New fork identity; the prefix is globbed by installed firmware (D7) | Phase 0 |
 | CI | Z.ai/GLM review workflow removed (archived in `docs/archive/starling/`) | Not used by StarFling | Phase 0 |
+| Boot time | `inittab` plays 10 ms of silence (`tinyplay`, `/usr/share/starfling/silence-10ms.wav`) in the background right after `/proc` is mounted | The codec driver's 700 ms amp power-up sleep moves off the frontend's and emulator's critical path (Phase 1.2 baseline) | Phase 1.3 |
