@@ -189,7 +189,7 @@ sh tools/check-versions.sh || die "the bump left the version files inconsistent 
 # cutting the release should see them once and decide.
 leftovers="$(git grep -n "${oldre}" -- . \
     ':(exclude)CHANGELOG.md' ':(exclude)ANALYSIS.md' \
-    ':(exclude)glm.md' ':(exclude)kimi.md' 2>/dev/null || true)"
+    ':(exclude)docs/archive/**' 2>/dev/null || true)"
 if [ -n "${leftovers}" ]; then
     echo ""
     echo "Note: ${old} is still mentioned here (fine if it is prose about the past):"

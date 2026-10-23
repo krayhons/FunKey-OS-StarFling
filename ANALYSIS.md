@@ -1,7 +1,7 @@
 # FunKey-OS-Starling — Analysis & Backlog (ANALYSIS.md)
 
 This is the working backlog for future work on the fork: every finding from the
-full review passes (preserved in `glm.md` and `kimi.md` — two independent
+full review passes (preserved in `docs/archive/starling/glm.md` and `kimi.md` — two independent
 reviews, consolidated here) that is **not yet implemented**, plus a status
 table of what was implemented and where it is waiting. Items are written to be
 picked up directly — context, evidence, concrete fix plan, risk — without
@@ -24,7 +24,7 @@ Everything the status table used to track has landed: PRs #24–#32 and
 #41–#45 are all merged into `master` and shipped as Starling 3.1.0 (the
 RetroFE patches now numbered 0001–0016 in apply order). Per this file's own
 rule — "if any of these PRs land, delete the row" — the table is gone; the
-review reasoning behind each change remains in `glm.md`/`kimi.md`, and the
+review reasoning behind each change remains in `docs/archive/starling/glm.md`/`kimi.md`, and the
 merge commits name the PRs.
 
 ---
@@ -300,7 +300,7 @@ same way if touched for other reasons.
 ## Additional findings from the second review (`kimi.md`)
 
 A second, independent full review (same scope, same pinned tag) was done in
-parallel; its full text is `kimi.md`. Findings that duplicate items above were
+parallel; its full text is `docs/archive/starling/kimi.md`. Findings that duplicate items above were
 consolidated into them; the PRs it produced are in the status table (K1–K5).
 What remains unique and unimplemented:
 
@@ -407,5 +407,5 @@ spot independently. If #42 landed, the string flows through the OSD wrap
 - `controls.conf` is read only from the read-only rootfs
   (`absolutePath/controls.conf`); user copies on the share partition are
   ignored — there is no stale-user-config failure mode for new keys.
-- The `zai-code-review.yml` GLM workflow only reviews same-repo branches;
-  fork PRs get no automated review, by design.
+- The `zai-code-review.yml` GLM workflow (archived; StarFling does not run it) only reviewed same-repo branches;
+  fork PRs got no automated review, by design.
