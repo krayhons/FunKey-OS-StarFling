@@ -20,6 +20,15 @@ One-time setup:
    swap=8GB
    ```
 
+   Also stop WSL from appending the Windows PATH: its entries contain spaces
+   (`Program Files`), and buildroot refuses to build with spaces in PATH. In
+   Ubuntu, put this in `/etc/wsl.conf`:
+
+   ```ini
+   [interop]
+   appendWindowsPath=false
+   ```
+
    Then `wsl --shutdown` and reopen Ubuntu. WSL2's default memory cap is half
    of RAM; parallel C++ jobs (RetroFE, emulators) can run out of memory
    with less, which makes the build fail or crawl.
