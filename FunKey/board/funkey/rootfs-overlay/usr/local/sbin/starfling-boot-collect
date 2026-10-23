@@ -14,6 +14,7 @@ SELF="$(basename ${0})"
 COLLECT_DELAY_S=30
 MOUNT_RETRY_S=10
 MOUNT_RETRIES=60
+BOOTCHART_WAIT_S=10
 
 source /usr/local/lib/bootmark
 
@@ -49,6 +50,7 @@ mkdir -p "${out}"
     echo "boot=${id}"
     echo "adb=$([ -f /mnt/adb ] && echo 1 || echo 0)"
     echo "usbnet=$([ -f /mnt/usbnet ] && echo 1 || echo 0)"
+    echo "bootchart=$([ -f "${STARFLING_BOOT_DIR}/bootchart" ] && echo 1 || echo 0)"
     echo "cmdline=$(cat /proc/cmdline)"
     grep -E '^(NAME|VERSION_ID)=' /etc/os-release
     echo "uptime_at_collect=$(cut -d ' ' -f 1 /proc/uptime)"
@@ -56,6 +58,18 @@ mkdir -p "${out}"
 
 dmesg > "${out}/dmesg.txt"
 [ -f /tmp/retrofe.log ] && cp /tmp/retrofe.log "${out}/retrofe.log"
+
+# When stopped, bootchartd packs its samples into /var/log/bootlog.tgz and
+# then exits, so its exit means the archive is complete
+if pidof bootchartd >/dev/null; then
+    bootchartd stop
+    tries=0
+    while pidof bootchartd >/dev/null && [ ${tries} -lt ${BOOTCHART_WAIT_S} ]; do
+	sleep 1
+	tries=$((tries + 1))
+    done
+    cp /var/log/bootlog.tgz "${out}/bootchart.tgz"
+fi
 sync
 
 notif set 5 "Boot data ${id} saved"

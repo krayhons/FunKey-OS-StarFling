@@ -9,6 +9,12 @@ source /usr/local/lib/bootmark
 bootmark_init
 bootmark "rcS start"
 
+# Optional bootchart (CPU, disk and per-process samples every 0.2 s). Its
+# sampling slows the boot, so a bootchart boot is never a timing sample.
+if [ -e "$STARFLING_BOOT_FLAG" ] && [ -f "$STARFLING_BOOT_DIR/bootchart" ]; then
+    bootchartd start
+fi
+
 # Start all init scripts in /etc/init.d
 # executing them in numerical order.
 #
