@@ -43,7 +43,7 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 | sysinit | init → rcS start | 208 | `mount -a` (FAT) ~115, `swapon` ~53, syslogd/klogd, ~12 forked commands |
 | rcS without S10share | rcS start → rcS end | ~370 | S50alsa-utils 113, S02sysctl 41, S01first_boot 38, S20urandom 35 |
 | S10share without adb | | ? | Normal-boot cost unknown until the round |
-| Login + `.profile` | rcS end → frontend exec | 287 | `.profile` start → volume/brightness restored 182 |
+| Login + `.profile` | rcS end → frontend exec | 287 | `.profile` start → volume/brightness restored 182 (`volume set` alone ~120) |
 | RetroFE exec → `main` | | 338 | Cold page-in of 22 libraries (~10 MB); 52 ms warm |
 | Config import | `main` → config imported | 171 | 58 ms warm |
 | SDL init | → sdl initialized | 874 | ~750 is the audio amplifier power-up sleep (confirmed below) |
@@ -76,6 +76,14 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 3. **Bootchart (boot 003)**: the CPU is saturated from rcS end to the menu
    except for two idle windows: the adb `sleep 5` and ~0.6 s inside RetroFE
    SDL init (finding 1). iowait peaks (50–72 %) at RetroFE exec.
+
+4. **Userspace commands, timed live (warm cache, so lower bounds for
+   boot):** `volume set` 120 ms (`bc`, three `amixer` calls, `audio_amp on`,
+   and a U-Boot env write when the value changes); `volume get` 30;
+   `brightness get`/`set` 20 each; `assembly_tests` 20; `alsactl restore`
+   40 (113 at boot, cold); `S02sysctl` 40; `S20urandom` 20;
+   `S13system-stats` 20; `keymap default` 30; `instant_play load` with no
+   game 20; `fw_printenv` 10; `hwclock` 10. A bare fork+exec is ~4.5 ms.
 
 ## Top time sinks *(prelim.)*
 
