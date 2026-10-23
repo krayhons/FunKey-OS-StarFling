@@ -163,7 +163,7 @@ On a spare card flashed with the stock Starling 3.1.3 image (or StarFling
 - [Y] Power off in a game, power on: the same game resumes
 - [Y] MENU → MOUNT USB shows the drive on Windows
 - [Y] FN+START at power-on enters Recovery; 
-- [N]  EXIT RECOVERY boots normally (stuck on recovery and needs hard reset to reboot)
+- [~] EXIT RECOVERY boots normally (intermittent: first attempt stuck on recovery and needed a hard reset; second attempt rebooted normally)
 - [ ] With `/mnt/adb` set: `adb shell`, `adb push`, `rw`/`ro` all work from WSL2
 - [Y] Note the card model; it becomes the Phase 1 reference card - Card is Kodak64g
 
