@@ -8,7 +8,7 @@ any optimization work starts.
 
 ## Goal
 
-| Path | Baseline (drum86, Kevin's stopwatch) | Target |
+| Path | Baseline (drum86, K's stopwatch) | Target |
 |---|---|---|
 | Power-on → interactive menu (accepts input) | ~6 s | **≤ 3.0 s** (median of 10 cold boots) |
 | Power-on → gameplay frame, resuming a game via Instant Play | not yet measured | **≤ 3.0 s** for the reference core |
@@ -73,16 +73,16 @@ No special hardware is required for Phase 1. Serial is a nice-to-have.
 
 | Level | Needs | Gives | Use |
 |---|---|---|---|
-| **0** | A phone that records 240 fps slow-motion video; a USB cable | Wall-clock T0 → T_menu / T_game. On-device timestamps (kernel `PRINTK_TIME`, a `bootmark` log from `/proc/uptime` at each stage, BusyBox bootchart, RetroFE timestamps) saved to `/mnt/starfling-boot/` and read on the PC as a USB drive. **Pre-kernel time (BROM + SPL + U-Boot + decompress) = video total − kernel uptime at T_menu.** | Required. Kevin's part: power-cycle and film; about 1 minute per boot |
+| **0** | A phone that records 240 fps slow-motion video; a USB cable | Wall-clock T0 → T_menu / T_game. On-device timestamps (kernel `PRINTK_TIME`, a `bootmark` log from `/proc/uptime` at each stage, BusyBox bootchart, RetroFE timestamps) saved to `/mnt/starfling-boot/` and read on the PC as a USB drive. **Pre-kernel time (BROM + SPL + U-Boot + decompress) = video total − kernel uptime at T_menu.** | Required. K's part: power-cycle and film; about 1 minute per boot |
 | **1** | Level 0 + usbipd-win on Windows to pass the device's USB into WSL2 | Claude Code can `adb shell`, `adb push` builds of single files (scripts, RetroFE binary), pull logs, and run `reboot` itself | Strongly recommended; turns most iterations into minutes with no reflash |
 | **2** | A 3.3 V USB-to-UART adapter (CP2102, CH340 or FTDI, about $5–10), soldering or pogo pins, opening the RG Nano | Live SPL/U-Boot/kernel console with timestamps; rescue when a build does not reach userspace | Optional. Only if U-Boot work (1.6) stalls. UART pad locations on the RG Nano board are **not confirmed** by anything found so far; find them before buying. Never use a 5 V adapter |
 
 The agent cannot press the power button or see the screen. Every
-measurement round is: agent prepares the build or pushed change → Kevin runs
+measurement round is: agent prepares the build or pushed change → K runs
 the boot script below → agent reads the logs from `/mnt/starfling-boot/` and
-Kevin reports the video times.
+K reports the video times.
 
-**Measurement round (Kevin):** for each of the 10 boots: power off, wait 5 s,
+**Measurement round (K):** for each of the 10 boots: power off, wait 5 s,
 start filming, power on, press D-pad right once the menu appears, stop. Read
 the times from the video frame counter. Repeat with a game resumed. The agent
 supplies a CSV template.
@@ -92,7 +92,7 @@ supplies a CSV template.
 Savings are per lever, measured against today's boot, and they overlap; they
 do not simply add up.
 
-### Items Kevin asked about
+### Items K asked about
 
 | Item | What it is here | Est. saving | Recommendation |
 |---|---|---|---|
@@ -143,17 +143,17 @@ report decides the order.
   fonts loaded, collection built, first frame presented, first input accepted.
   Keep the log on `/mnt` in debug builds (the README notes it is on tmpfs today).
 - Save `dmesg` to the same folder at the end of boot.
-- A host-side script (`tools/starfling/boot-report.py`) turns logs + Kevin's
+- A host-side script (`tools/starfling/boot-report.py`) turns logs + K's
   video CSV into one timeline table.
 - **Accept:** a debug build produces a complete timeline; production build
   behaviour unchanged; overhead under 20 ms.
 
 ### 1.2 Baseline and bottleneck report
 - 10 cold boots to menu and 10 to a resumed game, on the reference card, for
-  (i) stock Starling and (ii) Kevin's drum86 build if available.
+  (i) stock Starling and (ii) K's drum86 build if available.
 - Output `docs/starfling/BASELINE.md`: per-stage medians, the top 10 time
   sinks, and a re-ranked lever list with expected savings.
-- **Stop and get Kevin's go-ahead before 1.3.**
+- **Stop and get K's go-ahead before 1.3.**
 
 ### 1.3 Userspace init restructure
 - New fast path: essential mounts → `/mnt` → `.fwu` check → volume/brightness
@@ -228,7 +228,7 @@ phase item, logged in the backlog.
 
 ### 1.7 Instant Play resume path
 - Make the game path skip everything the menu path skips; start the emulator
-  as early as the fast path allows. Choose one **reference core** with Kevin
+  as early as the fast path allows. Choose one **reference core** with K
   **GBA via gpsp (D10)**. It also exercises the `rw`/asound special case in
   `instant_play`, which must keep working with task 1.5a's USB audio changes.
 - Per-core startup and savestate speed is out of scope here; that belongs to
@@ -241,7 +241,7 @@ phase item, logged in the backlog.
   and after numbers.
 
 ### 1.9 (Gated) experiments
-- Squashfs root, Falcon mode, snapshot resume. Only with Kevin's approval and
+- Squashfs root, Falcon mode, snapshot resume. Only with K's approval and
   only if the target is missed after 1.3–1.7.
 
 ## Regression checklist

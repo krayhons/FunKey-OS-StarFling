@@ -26,17 +26,17 @@ unmodified fork of Starling 3.1.3 at the start of Phase 0).
 
 | # | Decision | Source |
 |---|---|---|
-| D1 | Target device: RG Nano only. Other console branches are out of scope. | Kevin |
-| D2 | Phase 1 goal: power-on to interactive menu in **≤ 3.0 s**, and power-on to gameplay on resume in **≤ 3.0 s** (baseline about 6 s on drum86). | Kevin |
-| D3 | Boot behaviour stays as upstream: menu if powered off in the menu, the same game if powered off in a game. This is FunKey's existing Instant Play; Phase 1 must keep it. | Kevin |
-| D4 | Keep RetroFE as the frontend in Phase 1. A lighter custom launcher is a candidate for a later phase. | Kevin |
-| D5 | Build host: WSL2 (Ubuntu 22.04 distro, repo on the WSL ext4 filesystem, not `/mnt/c`). | Kevin |
-| D6 | Coding agent: Claude Code. Device in the loop through adb over USB (usbipd-win), with Kevin doing power cycles and phone-video timing. Serial is optional (see Phase 1 brief, "Measurement levels"). | Kevin / plan |
+| D1 | Target device: RG Nano only. Other console branches are out of scope. | K |
+| D2 | Phase 1 goal: power-on to interactive menu in **≤ 3.0 s**, and power-on to gameplay on resume in **≤ 3.0 s** (baseline about 6 s on drum86). | K |
+| D3 | Boot behaviour stays as upstream: menu if powered off in the menu, the same game if powered off in a game. This is FunKey's existing Instant Play; Phase 1 must keep it. | K |
+| D4 | Keep RetroFE as the frontend in Phase 1. A lighter custom launcher is a candidate for a later phase. | K |
+| D5 | Build host: WSL2 (Ubuntu 22.04 distro, repo on the WSL ext4 filesystem, not `/mnt/c`). | K |
+| D6 | Coding agent: Claude Code. Device in the loop through adb over USB (usbipd-win), with K doing power cycles and phone-video timing. Serial is optional (see Phase 1 brief, "Measurement levels"). | K / plan |
 | D7 | Keep `.fwu` update compatibility and the `FunKey-` filename prefix (the installed firmware globs `/mnt/FunKey-*.fwu`). | plan |
 | D8 | Keep Recovery (`p1`) and the FN+START recovery entry working at all times. | plan |
-| D9 | **USB-C audio is required** (the RG Nano has no 3.5 mm jack). Keep it, but take it off the boot critical path: deferred loading, smarter detection, event-driven switching (task 1.5a). | Kevin |
-| D10 | Reference core for the resume-to-game target: **GBA (gpsp)**. | Kevin |
-| D11 | Plan approved 2026-10-22. Next step: Phase 0 in a new Claude Code chat. | Kevin |
+| D9 | **USB-C audio is required** (the RG Nano has no 3.5 mm jack). Keep it, but take it off the boot critical path: deferred loading, smarter detection, event-driven switching (task 1.5a). | K |
+| D10 | Reference core for the resume-to-game target: **GBA (gpsp)**. | K |
+| D11 | Plan approved 2026-10-22. Next step: Phase 0 in a new Claude Code chat. | K |
 
 ## Guardrails for every phase
 
@@ -51,7 +51,7 @@ unmodified fork of Starling 3.1.3 at the start of Phase 0).
 5. **Stay readable against upstream.** Prefer new files and small patches over
    rewrites of upstream scripts. Record every intentional divergence in
    `docs/starfling/DIVERGENCE.md`.
-6. **One subagent at a time.** The agent asks Kevin before spawning more than
+6. **One subagent at a time.** The agent asks K before spawning more than
    one, and prefers doing work inline.
 7. **No code outside the active phase's scope.** New ideas go into the phase
    file's backlog section.
@@ -60,7 +60,7 @@ unmodified fork of Starling 3.1.3 at the start of Phase 0).
 
 | Phase | Name | Chat(s) | Outcome |
 |---|---|---|---|
-| 0 | Fork setup and dev loop | 1 | StarFling builds in WSL2, boots on Kevin's RG Nano, adb dev loop works, docs rebranded |
+| 0 | Fork setup and dev loop | 1 | StarFling builds in WSL2, boots on K's RG Nano, adb dev loop works, docs rebranded |
 | 1 | Boot-time optimization | 1–3 | Menu ≤ 3.0 s, resume-to-game ≤ 3.0 s, no regressions |
 | 2..n | Emulator cores (one per core) | 1 each | Per-core startup, savestate load, and performance; brief written at the start of each |
 | later | Lighter launcher (optional) | 1–2 | Only if RetroFE remains the bottleneck after Phase 1 |
@@ -74,12 +74,12 @@ is listed separately because every later phase depends on it.
 - 0.1 Set up WSL2 Ubuntu 22.04, install the README package list, clone to `~/`,
   `make all` (skip `make sdk`; it is only for publishing a toolchain).
 - 0.2 Flash the unmodified Starling 3.1.3 image to a spare card and confirm it
-  boots on Kevin's RG Nano. **Starling's own README says nothing since 3.0.0
+  boots on K's RG Nano. **Starling's own README says nothing since 3.0.0
   has run on hardware**, so this is a real test, not a formality.
 - 0.3 Rebrand: version string, `CHANGELOG.md` heading scheme
   (`## StarFling-X.Y.Z`), artifact names `FunKey-sdcard-StarFling-*-RG_Nano.img`
   (keep the `FunKey-` prefix), README header. Trim Starling-specific CI that
-  Kevin does not use (the GLM/Z.ai review workflow, PR-babysitting rules in
+  K does not use (the GLM/Z.ai review workflow, PR-babysitting rules in
   `CLAUDE.md`).
 - 0.4 Dev loop: enable adb on the device (`touch /mnt/adb`), attach it to WSL2
   with usbipd-win, confirm `adb shell`, `adb push`, `rw`/`ro`. Document the
@@ -95,7 +95,7 @@ model gets stuck twice.
 | ID | Task | Model | Effort | Size | Why this model |
 |---|---|---|---|---|---|
 | 0.1 | WSL2 build setup, first build, fix build breaks | Sonnet | medium | M | Mostly following instructions and reading build logs |
-| 0.2 | Verify stock Starling on hardware (Kevin does the flashing) | Haiku | low | S | Checklist only |
+| 0.2 | Verify stock Starling on hardware (K does the flashing) | Haiku | low | S | Checklist only |
 | 0.3 | Rebrand version strings, artifact names, CHANGELOG, README | Haiku | low | S | Mechanical edits |
 | 0.4 | adb dev loop and `DEVLOOP.md` | Sonnet | low | S | Small scripts and docs |
 | 1.1 | Boot instrumentation (boot-mark tool, bootchart, RetroFE timestamps, log collector) | Sonnet | medium | M | Well-specified scripting |
@@ -107,7 +107,7 @@ model gets stuck twice.
 | 1.6 | U-Boot bootcmd and config tuning | Opus | high | M | Bootloader risk; must keep recovery entry |
 | 1.7 | Instant Play resume path (game-start ordering) | Sonnet | medium | S | Ordering change in existing scripts |
 | 1.8 | Regression pass and release notes | Sonnet (tests), Haiku (notes) | medium / low | M | Checklist execution, then prose |
-| 1.9 | (Gated) experimental levers: squashfs root, Falcon mode, snapshot resume | Opus | high | L | Only if 1.3–1.7 miss target; Kevin approves first |
+| 1.9 | (Gated) experimental levers: squashfs root, Falcon mode, snapshot resume | Opus | high | L | Only if 1.3–1.7 miss target; K approves first |
 | 2.x | Emulator core N (one chat each) | Sonnet; Opus for the plan of each core | medium / high | M–L | Plan written at the start of each core chat |
 
 ## Handoff template
@@ -118,6 +118,6 @@ model gets stuck twice.
 ## Measurements (table: change, menu ms, game ms, n boots)
 ## In progress / exact next step
 ## Decisions made this chat (and why)
-## Open questions for Kevin
+## Open questions for K
 ## Files touched
 ```
