@@ -63,8 +63,11 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
    - `aplay` of 0.1 s silence: 0.89 to 0.93 s cold, 0.15 s warm.
    - RetroFE `config imported → sdl initialized`: 848 / 897 ms cold vs
      121 / 121 ms when a 10 ms `aplay` warmed the amp just before.
-   - The game path almost certainly pays it too (the emulator opens audio
-     on a cold amp); to confirm from the round's video.
+   - The game path pays it too. picoarch + gpsp with Anguna, PCM open →
+     running: 770 / 780 ms with a cold amp, 40 / 20 ms warm (exec → open
+     ~210 ms in all runs). Whether the first gameplay frame waits for it is
+     for the round's video to show; picoarch sets up audio during its
+     platform init, before the core runs.
 2. **RetroFE's early startup is SD-card bound, not CPU bound.** exec →
    `main` 338 ms cold vs 52 ms warm; config import 171 vs 58 ms. Reading the
    binary plus its 12 largest libraries end to end takes 0.18 s cold, so
@@ -78,7 +81,7 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 
 | # | Sink | Est. ms (menu) | Path(s) |
 |---|---|---:|---|
-| 1 | Audio amp power-up sleep (kernel `msleep(700)` on first playback) | 750 | menu, game (likely) |
+| 1 | Audio amp power-up sleep (kernel `msleep(700)` on first playback) | 750 | menu, game (both measured) |
 | 2 | Kernel init (fbtft, USB host, probe) | 573 | both |
 | 3 | RetroFE splash → menu build (layout, fonts, collection) | ~380 | menu |
 | 4 | RetroFE exec, cold library page-in | 338 | menu |
@@ -94,7 +97,7 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 
 | Lever | Task | Est. saving | Confidence |
 |---|---|---:|---|
-| Warm the amp in the background early in boot (a short silent stream right after the codec probes), or open audio off RetroFE's main thread; never shorten the kernel sleep without listening for pops | 1.3 / 1.5a | 0.6–0.75 s menu, likely the same on game | High (measured) |
+| Warm the amp in the background early in boot (a short silent stream right after the codec probes), or open audio off RetroFE's main thread; never shorten the kernel sleep without listening for pops | 1.3 / 1.5a | ~0.75 s menu and game | High (measured on both) |
 | Skip `VideoFactory::createVideo()` when `videoEnable = no`; then drop GStreamer linkage | 1.4 | 0.24 s + part of exec page-in | High (measured cost) |
 | Userspace fast path: frontend straight from init, defer late services (`alsactl`, sysctl, urandom, system-stats), fewer forks in `.profile` | 1.3 | 0.4–0.7 s | Medium |
 | Prefetch RetroFE and its libraries in the background during kernel/sysinit idle time, or trim libraries | 1.3 / 1.4 | 0.1–0.2 s | Medium |
