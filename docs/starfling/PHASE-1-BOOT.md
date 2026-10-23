@@ -74,7 +74,7 @@ No special hardware is required for Phase 1. Serial is a nice-to-have.
 | Level | Needs | Gives | Use |
 |---|---|---|---|
 | **0** | A phone that records 240 fps slow-motion video; a USB cable | Wall-clock T0 → T_menu / T_game. On-device timestamps (kernel `PRINTK_TIME`, a `bootmark` log from `/proc/uptime` at each stage, BusyBox bootchart, RetroFE timestamps) saved to `/mnt/starfling-boot/` and read on the PC as a USB drive. **Pre-kernel time (BROM + SPL + U-Boot + decompress) = video total − kernel uptime at T_menu.** | Required. K's part: power-cycle and film; about 1 minute per boot |
-| **1** | Level 0 + usbipd-win on Windows to pass the device's USB into WSL2 | Claude Code can `adb shell`, `adb push` builds of single files (scripts, RetroFE binary), pull logs, and run `reboot` itself | Strongly recommended; turns most iterations into minutes with no reflash |
+| **1** | Level 0 + Google's Windows `adb.exe`, called from WSL2 (`/mnt/c/platform-tools/adb.exe`), with `/mnt/adb` set on the device. usbipd-win does not work with the RG Nano (`DEVLOOP.md` section 4) | Claude Code can `adb shell`, `adb push` builds of single files (scripts, RetroFE binary), pull logs, and run `reboot` itself | Strongly recommended; turns most iterations into minutes with no reflash |
 | **2** | A 3.3 V USB-to-UART adapter (CP2102, CH340 or FTDI, about $5–10), soldering or pogo pins, opening the RG Nano | Live SPL/U-Boot/kernel console with timestamps; rescue when a build does not reach userspace | Optional. Only if U-Boot work (1.6) stalls. UART pad locations on the RG Nano board are **not confirmed** by anything found so far; find them before buying. Never use a 5 V adapter |
 
 The agent cannot press the power button or see the screen. Every
@@ -270,7 +270,7 @@ phase item, logged in the backlog.
 | A change stops the device reaching userspace | SD boot means reflash from Windows; keep the known-good card; Recovery on `p1` is untouched except in 1.6 |
 | Battery-latched unresponsive state (noted in the Starling README) | Briefly disconnect the battery; document in `DEVLOOP.md` |
 | Timing noise between boots | Medians of 10 boots, same card, same state, device at room temperature and charged |
-| WSL2 specifics | Repo on the WSL ext4 filesystem; Ubuntu 22.04 (24.04 lacks `python3-distutils`); usbipd-win for adb; flash cards from Windows (balenaEtcher) |
+| WSL2 specifics | Repo on the WSL ext4 filesystem; Ubuntu 22.04 (24.04 lacks `python3-distutils`); Windows `adb.exe` for adb (usbipd-win fails); flash cards from Windows (balenaEtcher) |
 
 ## Backlog (not in Phase 1)
 
