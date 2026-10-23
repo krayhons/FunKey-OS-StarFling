@@ -21,7 +21,7 @@ PR #3), Kodak 64 GB reference card, theme RetroRoomCovers, `firstCollection
   comes later (emulator start, amp sleep, core and savestate load).
 - **Biggest single levers, both measured:** the codec amplifier's 700 ms
   power-up sleep (~0.75 s, menu and game) and fkgpiod's `sleep(1)` holding
-  up Instant Play (~0.55 s, game). Together with GStreamer init (0.22 s),
+  up Instant Play (~0.55 s, game). Together with the quick menu's eager setup (0.22 s),
   S10share (0.34 s) and the menu animation (0.28 s), the measured,
   addressable time on the menu path is about 1.6 s before any kernel or
   U-Boot work.
@@ -63,7 +63,7 @@ Boot-to-boot spread is small: most steps vary by under 10 ms across boots.
 | RetroFE exec → `main` | | 346 | — | Cold page-in of 22 libraries; 52 ms warm |
 | Config import | `main` → config imported | 168 | — | 58 ms warm |
 | SDL init | → sdl initialized | 866 | — | ~750 is the audio amp power-up sleep |
-| GStreamer init | → video initialized | 222 | — | Video off and unused |
+| Font cache, quick-menu setup, controls | → video initialized | 222 | — | `MenuMode::init()`: 13 fonts (5 × the 4 MB CJK fallback), images, zones; only needed on MENU. GStreamer is *not* initialised (`videoEnable = no` already skips it) |
 | Splash, init thread, layout, fonts, collection, menu build | → menu first frame | 302 | — | Fonts ~53 |
 | Menu onEnter animation | first frame → accepts input | 278 | — | |
 | Emulator start → gameplay | game exec → game moving | — | ? | Not measured; includes the ~0.75 s amp sleep (measured live) |
@@ -123,7 +123,7 @@ call `keymap` before RetroFE, so it does not wait.
 | 6 | S10share (USB gadget, `mkdir -p`s) | 343 | 344 |
 | 7 | RetroFE splash → menu built (layout, fonts, collection) | 302 | — |
 | 8 | Menu onEnter animation before input | 278 | — |
-| 9 | GStreamer pre-init with video off | 222 | — |
+| 9 | Quick menu set up at startup (`MenuMode::init`) | 222 | — |
 | 10 | Login + `.profile` (`volume set` ~120) | 213 | 211 |
 | 11 | sysinit (`mount -a`, `swapon`, forks) | 209 | 207 |
 | 12 | RetroFE config import (cold reads) | 168 | — |
@@ -134,7 +134,8 @@ call `keymap` before RetroFE, so it does not wait.
 | Lever | Task | Est. saving | Confidence |
 |---|---|---:|---|
 | Warm the amp in the background early in boot (a short silent stream right after the codec probes), or open audio off RetroFE's main thread; never shorten the kernel sleep without listening for pops | 1.3 / 1.5a | ~0.75 s menu and game | High (measured on both) |
-| Skip `VideoFactory::createVideo()` when `videoEnable = no`; then drop GStreamer linkage | 1.4 | 0.24 s + part of exec page-in | High (measured cost) |
+| Set up the quick menu on first MENU press instead of at startup (and on every return from a game, `unloadSDL`) | 1.4 | ~0.2 s | High (measured span; attribution from code) |
+| Drop GStreamer linkage (video is off) to cut library page-in | 1.4 | part of the 346 ms exec page-in | Low |
 | Userspace fast path: frontend straight from init, defer late services (`alsactl`, sysctl, urandom, system-stats), fewer forks in `.profile` | 1.3 | 0.4–0.7 s | Medium |
 | Prefetch RetroFE and its libraries in the background during kernel/sysinit idle time, or trim libraries | 1.3 / 1.4 | 0.1–0.2 s | Medium |
 | Shorter or no onEnter animation for the first menu | 1.4 | up to 0.27 s | Medium (theme) |
