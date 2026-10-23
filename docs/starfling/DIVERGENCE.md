@@ -9,3 +9,4 @@ change; link the PR.
 |---|---|---|---|
 | Branding | Name, version scheme (`StarFling-X.Y.Z`, restarting at 0.1.0), repo URLs. The `FunKey-` artifact prefix is kept | New fork identity; the prefix is globbed by installed firmware (D7) | Phase 0 |
 | CI | Z.ai/GLM review workflow removed (archived in `docs/archive/starling/`) | Not used by StarFling | Phase 0 |
+| Boot time | RetroFE patch `0022-no-first-menu-animation.patch`: the first menu after boot appears in its final state, without the theme's enter animations | Input was blocked ~0.28 s while they played (K's decision, 2026-10-23) | Phase 1.4 |
