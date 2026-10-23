@@ -77,9 +77,7 @@ resize() {
     fi
 }
 
-# Restore saved volume
-echo "Restore saved volume"
-volume set $(volume get) >/dev/null 2>&1
+# Saved volume: restored by /usr/local/sbin/starfling-audio-init
 
 # Restore saved brightness
 echo "Restore saved brightness"

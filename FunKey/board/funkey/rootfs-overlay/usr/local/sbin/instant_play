@@ -47,6 +47,9 @@ load)
 	echo -n "Found Instant Play file, restarting previous game with command: "
 	cat "${INSTANT_PLAY_FILE}"
 	mv "${INSTANT_PLAY_FILE}" "${RESUME_PLAY_FILE}"
+	# The emulator opens the audio device right away; let the boot's amp
+	# warm-up (starfling-audio-init) release it first
+	starfling-audio-wait
 	bootmark "game exec"
 	source "${RESUME_PLAY_FILE}"
 	rm -f "${RESUME_PLAY_FILE}"

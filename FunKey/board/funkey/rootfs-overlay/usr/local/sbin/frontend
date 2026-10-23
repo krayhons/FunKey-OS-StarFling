@@ -86,6 +86,9 @@ init_frontend() {
 
 		    # Launch selected frontend
 	    	local frontend="$(get_frontend)"
+		    # The frontend opens the audio device at startup; let the boot's
+		    # amp warm-up (starfling-audio-init) release it first
+		    starfling-audio-wait
 		    bootmark "frontend exec ${frontend}"
 		    case "${frontend}" in
 			gmenu2x|retrofe)
