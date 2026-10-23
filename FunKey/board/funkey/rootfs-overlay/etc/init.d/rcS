@@ -36,3 +36,8 @@ for i in /etc/init.d/S??* ;do
 done
 
 bootmark "rcS end"
+
+# nice keeps the collector's startup from competing with the rest of boot
+if [ -e "$STARFLING_BOOT_FLAG" ]; then
+    nice -n 19 starfling-boot-collect >/dev/null 2>&1 &
+fi
