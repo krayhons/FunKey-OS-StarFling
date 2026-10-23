@@ -50,12 +50,11 @@ out="${STARFLING_BOOT_DIR}/${id}"
 mkdir -p "${out}"
 
 # Flags and versions that decide whether a boot is a valid timing sample.
-# adb or usbnet adds a fixed sleep 5 to the boot path (S10share).
+# adb or usbnet adds a fixed sleep 5 to the boot path (S10share). The flags
+# are the ones rcS saw at boot, not the current ones.
 {
     echo "boot=${id}"
-    echo "adb=$([ -f /mnt/adb ] && echo 1 || echo 0)"
-    echo "usbnet=$([ -f /mnt/usbnet ] && echo 1 || echo 0)"
-    echo "bootchart=$([ -f "${STARFLING_BOOT_DIR}/bootchart" ] && echo 1 || echo 0)"
+    cat "${STARFLING_BOOT_FLAG}"
     echo "cmdline=$(cat /proc/cmdline)"
     grep -E '^(NAME|VERSION_ID)=' /etc/os-release
     echo "uptime_at_collect=$(cut -d ' ' -f 1 /proc/uptime)"
