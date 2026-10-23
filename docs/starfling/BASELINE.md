@@ -118,7 +118,8 @@ Times on the kernel clock; S10share's adb `sleep 5` excluded.
 - Every boot logs `FAT-fs (mmcblk0p4): Volume was not properly unmounted`,
   including after a clean `reboot`. No fsck runs, so it costs no time, but
   it means the share partition's dirty bit is never cleared on shutdown.
-  Worth a look for data safety (Instant Play saves live there).
+  Added to the Phase 1 backlog (`PHASE-1-BOOT.md`) for data safety;
+  Instant Play saves live there.
 - RetroFE's `rememberMenu` is in-memory only: a cold boot always opens
   `firstCollection` (Main). The brief's "restoring Favorites triggers a full
   scan" does not apply at boot.
