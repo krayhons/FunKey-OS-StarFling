@@ -10,6 +10,8 @@ LAST_OPK_FILE="/mnt/last_opk"
 PID_PATH="/var/run/pid_path"
 REBOOTING_FILE="/run/rebooting"
 
+source /usr/local/lib/bootmark
+
 usage() {
     >&2 echo "Usage: ${SELF} load"
     >&2 echo "       ${SELF} save application args..."
@@ -45,6 +47,7 @@ load)
 	echo -n "Found Instant Play file, restarting previous game with command: "
 	cat "${INSTANT_PLAY_FILE}"
 	mv "${INSTANT_PLAY_FILE}" "${RESUME_PLAY_FILE}"
+	bootmark "game exec"
 	source "${RESUME_PLAY_FILE}"
 	rm -f "${RESUME_PLAY_FILE}"
 	keymap default

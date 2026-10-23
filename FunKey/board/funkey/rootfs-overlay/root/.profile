@@ -47,6 +47,9 @@ cancel_sched_powerdown() {
     powerdown handle
 }
 
+source /usr/local/lib/bootmark
+bootmark "profile start"
+
 # Relocate HOME into the r/w partition
 export HOME=/mnt/FunKey
 mkdir -p "${HOME}"
@@ -81,12 +84,15 @@ volume set $(volume get) >/dev/null 2>&1
 # Restore saved brightness
 echo "Restore saved brightness"
 brightness set $(brightness get) >/dev/null 2>&1
+bootmark "volume and brightness restored"
 
 # Start Assembly tests (blocking process)
 assembly_tests >/dev/null 2>&1
+bootmark "assembly_tests done"
 
 # Restart saved application/game if any
 instant_play load
+bootmark "instant_play load done"
 
 # Start frontend
 echo "Start frontend"
