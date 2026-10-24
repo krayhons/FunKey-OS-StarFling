@@ -1,0 +1,125 @@
+diff --git a/RetroFE/Source/CMakeLists.txt b/RetroFE/Source/CMakeLists.txt
+index e099e21..a48c624 100755
+--- a/RetroFE/Source/CMakeLists.txt
++++ b/RetroFE/Source/CMakeLists.txt
+@@ -3,6 +3,9 @@ cmake_minimum_required (VERSION 2.8)
+ project (retrofe)
+ 
+ set(LIBMIKMOD 0 CACHE BOOL "Link with libmikmod")
++# StarFling: without video, RetroFE no longer links GStreamer and GLib,
++# about 3.7 MB of libraries loaded at every start for nothing
++set(VIDEO 1 CACHE BOOL "Play theme videos with GStreamer")
+ 
+ set(CMAKE_FIND_FRAMEWORK FIRST)
+ set(RETROFE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+@@ -66,8 +69,10 @@ else()
+ 	find_package(SDL_ttf REQUIRED )
+ 	find_package(SDL_gfx REQUIRED )
+ 	pkg_search_module(ZLIB REQUIRED zlib)
++if(VIDEO)
+ 	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-video-1.0)
+ 	pkg_check_modules(Glib2 REQUIRED glib-2.0 gobject-2.0 gthread-2.0 gmodule-2.0)
++endif()
+ 	find_package(Threads REQUIRED)
+ 
+ if(APPLE)
+@@ -242,6 +247,11 @@ set(RETROFE_SOURCES
+ set(EXECUTABLE_OUTPUT_PATH "${RETROFE_DIR}/Build" CACHE PATH "Build directory" FORCE)
+ set(LIBRARY_OUTPUT_PATH "${RETROFE_DIR}/Build" CACHE PATH "Build directory" FORCE)
+ 
++if(NOT VIDEO)
++	list(REMOVE_ITEM RETROFE_SOURCES "${RETROFE_DIR}/Source/Video/GStreamerVideo.cpp")
++	add_definitions(-DRETROFE_NO_VIDEO)
++endif()
++
+ include_directories(${RETROFE_INCLUDE_DIRS})
+ add_executable(retrofe  ${RETROFE_SOURCES} ${RETROFE_HEADERS})
+ target_link_libraries(retrofe ${RETROFE_LIBRARIES})
+diff --git a/RetroFE/Source/Graphics/Component/Video.cpp b/RetroFE/Source/Graphics/Component/Video.cpp
+index 7cbee4d..15419df 100755
+--- a/RetroFE/Source/Graphics/Component/Video.cpp
++++ b/RetroFE/Source/Graphics/Component/Video.cpp
+@@ -18,7 +18,9 @@
+ #include "VideoComponent.h"
+ #include "VideoBuilder.h"
+ #include "../../Video/IVideo.h"
++#ifndef RETROFE_NO_VIDEO
+ #include "../../Video/GStreamerVideo.h"
++#endif
+ #include "../../Utility/Log.h"
+ #include "../../SDL.h"
+ 
+@@ -98,6 +100,7 @@ void Video::allocateGraphicsMemory( )
+         if (g.good( ))
+             file = file_;
+ 
++#ifndef RETROFE_NO_VIDEO
+         if (file != "")
+         {
+             IVideo      *video = new GStreamerVideo();
+@@ -105,6 +108,7 @@ void Video::allocateGraphicsMemory( )
+             ((GStreamerVideo *)(video))->setNumLoops(numLoops_);
+             video_             = new VideoComponent( video, page, file, scaleX_, scaleY_ );
+         }
++#endif
+     }
+ 
+     if (video_)
+diff --git a/RetroFE/Source/Graphics/Component/VideoComponent.cpp b/RetroFE/Source/Graphics/Component/VideoComponent.cpp
+index 7da329e..ba9bfb5 100755
+--- a/RetroFE/Source/Graphics/Component/VideoComponent.cpp
++++ b/RetroFE/Source/Graphics/Component/VideoComponent.cpp
+@@ -18,7 +18,9 @@
+ #include "../ViewInfo.h"
+ #include "../../Database/Configuration.h"
+ #include "../../Utility/Log.h"
++#ifndef RETROFE_NO_VIDEO
+ #include "../../Video/GStreamerVideo.h"
++#endif
+ #include "../../SDL.h"
+ 
+ VideoComponent::VideoComponent(IVideo *videoInst, Page &p, std::string videoFile, float scaleX, float scaleY)
+@@ -44,10 +46,12 @@ VideoComponent::~VideoComponent()
+ 
+ void VideoComponent::update(float dt)
+ {
++#ifndef RETROFE_NO_VIDEO
+     if (videoInst_)
+     {
+         isPlaying_ = ((GStreamerVideo *)(videoInst_))->isPlaying();
+     }
++#endif
+     if(isPlaying_)
+     {
+         videoInst_->update(dt);
+diff --git a/RetroFE/Source/Video/VideoFactory.cpp b/RetroFE/Source/Video/VideoFactory.cpp
+index 7a91114..e24c910 100755
+--- a/RetroFE/Source/Video/VideoFactory.cpp
++++ b/RetroFE/Source/Video/VideoFactory.cpp
+@@ -16,7 +16,9 @@
+ 
+ #include "VideoFactory.h"
+ #include "IVideo.h"
++#ifndef RETROFE_NO_VIDEO
+ #include "GStreamerVideo.h"
++#endif
+ 
+ bool VideoFactory::enabled_ = true;
+ int VideoFactory::numLoops_ = 0;
+@@ -24,13 +26,15 @@ IVideo *VideoFactory::instance_ = NULL;
+ 
+ IVideo *VideoFactory::createVideo()
+ {
+-
++#ifndef RETROFE_NO_VIDEO
+     if(enabled_ && !instance_)
+     {
+         instance_ = new GStreamerVideo();
+         instance_->initialize();
+         ((GStreamerVideo *)(instance_))->setNumLoops(numLoops_);
+     }
++#endif
++    // Built without video, this stays NULL; callers treat that as no video
+ 
+     return instance_;
+ }

@@ -14,6 +14,9 @@ RETROFE_LICENSE_FILES = LICENSE.txt
 RETROFE_SUBDIR = RetroFE/Source
 RETROFE_SUPPORTS_IN_SOURCE_BUILD = NO
 RETROFE_CONF_OPTS += -DVERSION_MAJOR=0 -DVERSION_MINOR=0 -DVERSION_BUILD=0
+# StarFling: video is off (settings.conf videoEnable = no); do not link
+# GStreamer and GLib, which only cost load time at every start
+RETROFE_CONF_OPTS += -DVIDEO=0
 
 ifeq ($(BR2_PACKAGE_LIBMIKMOD),y)
 RETROFE_DEPENDENCIES += libmikmod
