@@ -47,9 +47,18 @@ load)
 	echo -n "Found Instant Play file, restarting previous game with command: "
 	cat "${INSTANT_PLAY_FILE}"
 	mv "${INSTANT_PLAY_FILE}" "${RESUME_PLAY_FILE}"
-	# The emulator opens the audio device right away; let the boot's amp
-	# warm-up (starfling-audio-init) release it first
-	starfling-audio-wait
+	# The program opens the audio device right away; let the boot's amp
+	# warm-up (starfling-audio-init) release it first. picoarch waits for
+	# that itself where it opens audio (picoarch patch 0002), so its core
+	# and content loading overlap the warm-up; anything else waits here.
+	read -r resume_command < "${RESUME_PLAY_FILE}"
+	case "${resume_command}" in
+	    "'"*/picoarch"' "*)
+		;;
+	    *)
+		starfling-audio-wait
+		;;
+	esac
 	bootmark "game exec"
 	source "${RESUME_PLAY_FILE}"
 	rm -f "${RESUME_PLAY_FILE}"
