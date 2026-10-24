@@ -43,8 +43,11 @@ notif_set() {
     # Kill previous notif disp process
     pkill -f "notif display" 2> /dev/null
 
-    # Print new notif
-    notif display "${duration}" "${message}" &
+    # Print new notif. The clear timer runs in its own session: in the
+    # caller's, it died with the caller's terminal (an adb shell, for one)
+    # and left the notification on screen for good. "display" prints only
+    # once in the new session, so a hangup cannot leave it stuck.
+    setsid notif display "${duration}" "${message}" &
 }
 
 case "${1}" in
