@@ -1,0 +1,48 @@
+#!/bin/sh
+
+# Audio setup off the boot's critical path (StarFling Phase 1.3), started
+# in the background from inittab right after /proc is mounted.
+#  1. Power up the codec's output amp with 10 ms of silence (speaker amp
+#     held off meanwhile). The codec driver
+#     sleeps 700 ms here, holding the card's DAPM lock, and tinyplay holds
+#     the PCM device meanwhile: anything opening it now gets EBUSY. Hence
+#     the ready flag, which the frontend and Instant Play wait for.
+#  2. Restore the shipped mixer state (S50alsa-utils start), then the saved
+#     volume (what /root/.profile did), in that order: the restore would
+#     reset the volume. Neither opens the PCM device, and a restore after
+#     the amp is up does not power it down again (measured). By the time
+#     tinyplay returns, mount -a has mounted /run and /tmp for both.
+
+# init starts this with BusyBox's default PATH, without /usr/local/sbin
+export PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+AUDIO_READY_FLAG=/run/starfling-audio-ready
+
+# Keep the external speaker amp (GPIO PF6, see audio_amp) off while the
+# codec's output powers up, or the power-up pops through the speaker. The
+# amp stays off until sound actually plays (frontend, or
+# starfling-amp-on-when-playing for a resumed game): switching it on
+# before a stream starts pops too. "low" sets the
+# direction to output with the value 0 in one write.
+SPEAKER_AMP_GPIO=166
+
+# This starts right after /proc is mounted; /sys comes with mount -a a few
+# ms later. Wait for it (at most ~0.5 s) rather than miss the GPIO.
+tries=0
+while [ ! -d /sys/class/gpio ] && [ ${tries} -lt 50 ]; do
+    sleep 0.01
+    tries=$((tries + 1))
+done
+[ -d /sys/class/gpio/gpio${SPEAKER_AMP_GPIO} ] || echo ${SPEAKER_AMP_GPIO} > /sys/class/gpio/export
+echo low > /sys/class/gpio/gpio${SPEAKER_AMP_GPIO}/direction
+
+if ! tinyplay /usr/share/starfling/silence-10ms.wav -D 0 -d 0 >/dev/null 2>&1; then
+    # Not fatal: the first app to play sound then pays the 700 ms itself
+    echo "<4>starfling-audio-init: amp warm-up failed" > /dev/kmsg
+fi
+: > "${AUDIO_READY_FLAG}"
+
+/etc/init.d/S50alsa-utils start >/dev/null 2>&1 \
+    || echo "<4>starfling-audio-init: mixer restore failed" > /dev/kmsg
+VOLUME_KEEP_AMP=1 volume set $(volume get) >/dev/null 2>&1 \
+    || echo "<4>starfling-audio-init: volume restore failed" > /dev/kmsg

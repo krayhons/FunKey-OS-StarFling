@@ -13,6 +13,8 @@ LOCK_FILE="/var/lock/frontend.lock"
 REBOOTING_FILE="/run/rebooting"
 LAST_OPK_FILE="/mnt/last_opk"
 
+source /usr/local/lib/bootmark
+
 # Convert old launcher file to new frontend
 if [ -f "${LAUNCHER_FILE}" ]; then
     mv "${LAUNCHER_FILE}" "${FRONTEND_FILE}"
@@ -84,6 +86,7 @@ init_frontend() {
 
 		    # Launch selected frontend
 	    	local frontend="$(get_frontend)"
+		    bootmark "frontend exec ${frontend}"
 		    case "${frontend}" in
 			gmenu2x|retrofe)
 			    "${frontend}"&
