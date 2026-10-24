@@ -1,0 +1,39 @@
+diff --git a/RetroFE/Source/RetroFE.cpp b/RetroFE/Source/RetroFE.cpp
+index c40cd1f..c9e2e2f 100755
+--- a/RetroFE/Source/RetroFE.cpp
++++ b/RetroFE/Source/RetroFE.cpp
+@@ -25,6 +25,12 @@
+ #include "Menu/Menu.h"
+ #include "Menu/MenuMode.h"
+ #include "Utility/Log.h"
++
++// Skipping the first menu's enter animations: advance by this much per
++// update, for at most this many updates (theme animations are < 1 s and
++// have a few steps; idle loops count as idle and end the loop at once)
++#define FIRST_MENU_SKIP_STEP_S    10.0f
++#define FIRST_MENU_SKIP_MAX_STEPS 32
+ #include "Utility/Utils.h"
+ #include "Collection/MenuParser.h"
+ #include "SDL.h"
+@@ -486,6 +492,21 @@ void RetroFE::run( )
+         // Load art on entering RetroFE
+         case RETROFE_LOAD_ART:
+             currentPage_->start( );
++
++            // StarFling: show the first menu after boot in its final state
++            // instead of playing the theme's enter animations, which kept
++            // input blocked for ~0.28 s. Each update completes at most one
++            // tween step per component, hence the loop; the first update
++            // is what starts the enter animations, hence do-while.
++            {
++                int step = 0;
++                do
++                {
++                    currentPage_->update( FIRST_MENU_SKIP_STEP_S );
++                    step++;
++                } while ( !currentPage_->isIdle( ) && step < FIRST_MENU_SKIP_MAX_STEPS );
++            }
++            forceRender( true );
+             state = RETROFE_ENTER;
+             break;
+ 
