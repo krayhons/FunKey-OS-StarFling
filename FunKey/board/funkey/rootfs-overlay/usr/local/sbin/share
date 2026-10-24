@@ -7,6 +7,7 @@ SELF=${SELF:-$(basename $0)}
 LOCK_FILE=/var/lock/share.lock
 USB_GADGET_DELAY_S=3
 BACKING_STORE_WAIT_TENTHS=50
+ADB_NOTICE_S=5
 
 source /usr/local/lib/utils
 source usb_gadget
@@ -150,7 +151,14 @@ start_share () {
     #    (init_share), and with adb on it has no mass storage function at
     #    all. Wait for the function before giving up /mnt, and refuse if it
     #    never comes: unmounting first left the games missing until reboot.
-    wait_for_backing_store || die 16 "USB sharing impossible, no USB drive function (is /mnt/adb set?)"
+    if ! wait_for_backing_store; then
+	# adb replaces the USB drive while /mnt/adb exists; say so on screen,
+	# or MOUNT USB just appears to do nothing
+	if [ -f /mnt/adb ]; then
+	    notif set ${ADB_NOTICE_S} "^^^   USB DRIVE UNAVAILABLE:^       ADB IS ENABLED^^ DELETE /mnt/adb TO USE USB^^"
+	fi
+	die 16 "USB sharing impossible, no USB drive function (is /mnt/adb set?)"
+    fi
 
     # 1) Check if the backing store partition is already shared
     cat $BACKING_STORE_FILE | egrep -q ^/dev/mmcblk0p4 && die 12 "the backing store partition is already shared"
