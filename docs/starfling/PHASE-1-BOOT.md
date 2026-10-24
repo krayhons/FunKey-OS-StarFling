@@ -306,6 +306,11 @@ phase item, logged in the backlog.
 - Emulators reopen their audio device when a USB-C dongle is plugged or
   unplugged mid-game (per-core phases).
 - Lighter launcher (later phase).
+- The FAT share partition (`p4`) is logged as "Volume was not properly
+  unmounted" on every boot, even after a clean `reboot`, so its dirty bit is
+  never cleared at shutdown. No boot-time cost (no fsck runs), but Instant
+  Play saves, favorites and settings live there. Find out why the shutdown
+  path (`inittab` `umount -r /mnt`, `powerdown`) leaves it dirty.
 - Leaving Recovery sometimes hangs on an inverted (black/white swapped) boot
   logo and needs a power cycle: 2 of about 9 exits so far, including the
   automatic restart after a `.fwu` install (`plan.md`, task 0.5). Upstream
