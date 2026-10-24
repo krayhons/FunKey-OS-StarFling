@@ -23,6 +23,14 @@ AUDIO_READY_FLAG=/run/starfling-audio-ready
 # volume restore below switches it on again, as before. "low" sets the
 # direction to output with the value 0 in one write.
 SPEAKER_AMP_GPIO=166
+
+# This starts right after /proc is mounted; /sys comes with mount -a a few
+# ms later. Wait for it (at most ~0.5 s) rather than miss the GPIO.
+tries=0
+while [ ! -d /sys/class/gpio ] && [ ${tries} -lt 50 ]; do
+    sleep 0.01
+    tries=$((tries + 1))
+done
 [ -d /sys/class/gpio/gpio${SPEAKER_AMP_GPIO} ] || echo ${SPEAKER_AMP_GPIO} > /sys/class/gpio/export
 echo low > /sys/class/gpio/gpio${SPEAKER_AMP_GPIO}/direction
 
