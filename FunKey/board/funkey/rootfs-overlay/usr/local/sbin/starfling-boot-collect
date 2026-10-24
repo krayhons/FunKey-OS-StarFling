@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# Save this boot's timing data to /mnt/starfling-boot/NNN/ (Phase 1 task
+# 1.1). rcS starts it in the background at low priority, only while boot
+# marks are on (see /usr/local/lib/bootmark).
+#
+# It waits first, so that the menu or game is up and the first D-pad press
+# has been logged before anything is copied, and so that the copying
+# itself does not compete with the boot it is measuring. An on-screen
+# notification says when the data is saved and the device can be powered
+# off.
+
+SELF="$(basename ${0})"
+COLLECT_DELAY_S=30
+MOUNT_RETRY_S=10
+MOUNT_RETRIES=60
+BOOTCHART_WAIT_S=10
+
+source /usr/local/lib/bootmark
+
+[ -e "${STARFLING_BOOT_FLAG}" ] || exit 0
+
+sleep ${COLLECT_DELAY_S}
+
+# The share partition is unmounted while MOUNT USB is active
+tries=0
+while ! grep -q " /mnt " /proc/mounts; do
+    tries=$((tries + 1))
+    if [ ${tries} -gt ${MOUNT_RETRIES} ]; then
+	echo "${SELF}: /mnt not mounted, boot data not saved" > /dev/kmsg
+	exit 1
+    fi
+    sleep ${MOUNT_RETRY_S}
+done
+
+bootmark "collect start"
+
+# Boot numbers count up from 001 in the order boots were saved
+n=1
+while [ -e "${STARFLING_BOOT_DIR}/$(printf %03d ${n})" ]; do
+    n=$((n + 1))
+done
+id=$(printf %03d ${n})
+out="${STARFLING_BOOT_DIR}/${id}"
+mkdir -p "${out}"
+
+# Flags and versions that decide whether a boot is a valid timing sample.
+# adb or usbnet adds a fixed sleep 5 to the boot path (S10share).
+{
+    echo "boot=${id}"
+    echo "adb=$([ -f /mnt/adb ] && echo 1 || echo 0)"
+    echo "usbnet=$([ -f /mnt/usbnet ] && echo 1 || echo 0)"
+    echo "bootchart=$([ -f "${STARFLING_BOOT_DIR}/bootchart" ] && echo 1 || echo 0)"
+    echo "cmdline=$(cat /proc/cmdline)"
+    grep -E '^(NAME|VERSION_ID)=' /etc/os-release
+    echo "uptime_at_collect=$(cut -d ' ' -f 1 /proc/uptime)"
+} > "${out}/info.txt"
+
+dmesg > "${out}/dmesg.txt"
+[ -f /tmp/retrofe.log ] && cp /tmp/retrofe.log "${out}/retrofe.log"
+
+# When stopped, bootchartd packs its samples into /var/log/bootlog.tgz and
+# then exits, so its exit means the archive is complete
+if pidof bootchartd >/dev/null; then
+    bootchartd stop
+    tries=0
+    while pidof bootchartd >/dev/null && [ ${tries} -lt ${BOOTCHART_WAIT_S} ]; do
+	sleep 1
+	tries=$((tries + 1))
+    done
+    cp /var/log/bootlog.tgz "${out}/bootchart.tgz"
+fi
+sync
+
+notif set 5 "Boot data ${id} saved"
