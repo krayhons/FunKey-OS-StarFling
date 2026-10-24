@@ -13,3 +13,5 @@ change; link the PR.
 | Boot timing | RetroFE patch `0020-starfling-boot-marks.patch` | Same; RetroFE startup steps on the kernel clock | Phase 1.1 |
 | Boot timing | BusyBox `CONFIG_BOOTCHARTD` and `CONFIG_FEATURE_SEAMLESS_GZ` on | Optional bootchart; its `tar -z` needs seamless gzip | Phase 1.1 |
 | Scripts | `ro` exits 1 with a message when the read-only remount fails, and 0 when `/` is already read-only (upstream: always 0, or 1 when already read-only) | A failed remount looked like success and left `/` writable before power-off | Phase 1.1 |
+| Boot time | `rcS` starts S12, S13, S20 and S40–S42 3 s late in the background | Off the boot path (Phase 1.3) | Phase 1.3 |
+| Boot time | Audio setup in `starfling-audio-init`, started from `inittab`: amp warm-up with `tinyplay` (`/usr/share/starfling/silence-10ms.wav`), then S50alsa-utils' restore, then the saved volume (moved from `/root/.profile`). `rcS` no longer starts S50alsa-utils; `frontend` and `instant_play` wait for the warm-up (`starfling-audio-wait`) | The codec driver's 700 ms amp power-up sleep and the mixer work that waits on it leave the critical path (Phase 1.3) | Phase 1.3 |

@@ -21,6 +21,9 @@ fi
 # Phase 1.3). rcK still stops them at shutdown, which is where S20urandom
 # saves its seed. low_bat_check starts a few seconds later than before.
 LATE_SERVICES=" S12low-bat-check S13system-stats S20urandom S40network S41dhcpcd S42dropbear "
+# Started from inittab by starfling-audio-init instead, in the order audio
+# setup needs; rcK still runs their stop action (alsactl store)
+STARTED_ELSEWHERE=" S50alsa-utils "
 LATE_DELAY_S=3
 late=""
 
@@ -31,6 +34,12 @@ for i in /etc/init.d/S??* ;do
 
      # Ignore dangling symlinks (if any).
      [ ! -f "$i" ] && continue
+
+     case "$STARTED_ELSEWHERE" in
+	*" ${i##*/} "*)
+	    continue
+	    ;;
+     esac
 
      case "$LATE_SERVICES" in
 	*" ${i##*/} "*)

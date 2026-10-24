@@ -16,6 +16,9 @@
 # Startup the system
 ::sysinit:/bin/cat /etc/issue
 ::sysinit:/bin/mount -t proc proc /proc
+# Audio setup in the background: amp warm-up (the codec driver sleeps
+# 700 ms on power-up), mixer restore, saved volume. See the script.
+null::sysinit:/bin/sh -c "/usr/local/sbin/starfling-audio-init &"
 #::sysinit:/bin/mount -o remount,rw /
 ::sysinit:/bin/mkdir -p /dev/pts /dev/shm
 ::sysinit:/bin/mount -a
