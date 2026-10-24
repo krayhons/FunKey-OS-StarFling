@@ -2,7 +2,8 @@
 
 # Audio setup off the boot's critical path (StarFling Phase 1.3), started
 # in the background from inittab right after /proc is mounted.
-#  1. Power up the output amp with 10 ms of silence. The codec driver
+#  1. Power up the codec's output amp with 10 ms of silence (speaker amp
+#     held off meanwhile). The codec driver
 #     sleeps 700 ms here, holding the card's DAPM lock, and tinyplay holds
 #     the PCM device meanwhile: anything opening it now gets EBUSY. Hence
 #     the ready flag, which the frontend and Instant Play wait for.
@@ -16,6 +17,14 @@
 export PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 AUDIO_READY_FLAG=/run/starfling-audio-ready
+
+# Keep the external speaker amp (GPIO PF6, see audio_amp) off while the
+# codec's output powers up, or the power-up pops through the speaker. The
+# volume restore below switches it on again, as before. "low" sets the
+# direction to output with the value 0 in one write.
+SPEAKER_AMP_GPIO=166
+[ -d /sys/class/gpio/gpio${SPEAKER_AMP_GPIO} ] || echo ${SPEAKER_AMP_GPIO} > /sys/class/gpio/export
+echo low > /sys/class/gpio/gpio${SPEAKER_AMP_GPIO}/direction
 
 if ! tinyplay /usr/share/starfling/silence-10ms.wav -D 0 -d 0 >/dev/null 2>&1; then
     # Not fatal: the first app to play sound then pays the 700 ms itself
