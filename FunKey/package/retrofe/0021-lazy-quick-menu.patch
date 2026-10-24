@@ -1,0 +1,88 @@
+diff --git a/RetroFE/Source/Menu/MenuMode.cpp b/RetroFE/Source/Menu/MenuMode.cpp
+index c074b25..18b7d72 100755
+--- a/RetroFE/Source/Menu/MenuMode.cpp
++++ b/RetroFE/Source/Menu/MenuMode.cpp
+@@ -111,6 +111,7 @@ int *MenuMode::idx_menus = NULL;
+ int MenuMode::nb_menu_zones = 0;
+ int MenuMode::menuItem=0;
+ int MenuMode::stop_menu_loop = 0;
++static bool menu_mode_initialized = false;
+ 
+ SDL_Color MenuMode::text_color = {GRAY_MAIN_R, GRAY_MAIN_G, GRAY_MAIN_B};
+ int MenuMode::padding_y_from_center_menu_zone = 18;
+@@ -336,12 +337,31 @@ void MenuMode::init(Configuration &c)
+ 	/// ------ Init menu zones ------
+ 	init_menu_zones();
+ 
++	menu_mode_initialized = true;
++
+ 	return;
+ }
+ 
+ 
++/* The quick menu opens 13 fonts (five of them the 4 MB CJK fallback), loads
++ * its images and renders its zones: ~0.2 s that sat on the boot path, and
++ * again on every return from a game (unloadSDL), for a menu that is only
++ * needed once MENU is pressed. So it is set up on first use instead. */
++void MenuMode::initOnce(Configuration &c)
++{
++	if(menu_mode_initialized){
++		return;
++	}
++	init(c);
++}
++
+ void MenuMode::end( )
+ {
++	if(!menu_mode_initialized){
++		return;
++	}
++	menu_mode_initialized = false;
++
+ 	MENU_DEBUG_PRINTF("End MenuMode \n");
+ 	/// ------ Close font -------
+ 	TTF_CloseFont(menu_title_font);
+diff --git a/RetroFE/Source/Menu/MenuMode.h b/RetroFE/Source/Menu/MenuMode.h
+index dfb19d3..f7c1164 100755
+--- a/RetroFE/Source/Menu/MenuMode.h
++++ b/RetroFE/Source/Menu/MenuMode.h
+@@ -63,6 +63,7 @@ class MenuMode
+ public:
+     //MenuMode();
+     static void     init(Configuration &c);
++    static void     initOnce(Configuration &c);
+     static void     end();
+     static int      launch( );
+     static void     stop( );
+diff --git a/RetroFE/Source/RetroFE.cpp b/RetroFE/Source/RetroFE.cpp
+index d9f2d25..c40cd1f 100755
+--- a/RetroFE/Source/RetroFE.cpp
++++ b/RetroFE/Source/RetroFE.cpp
+@@ -274,9 +274,6 @@ void RetroFE::allocateGraphicsMemory( )
+     {
+         SDL::initialize( config_ );
+         currentPage_->initializeFonts( );
+-
+-        // Init MenuMode
+-        MenuMode::init( config_ );
+     }
+ 
+     // Allocate textures
+@@ -334,8 +331,7 @@ void RetroFE::run( )
+     if(! SDL::initialize( config_ ) ) return;
+     fontcache_.initialize( );
+ 
+-    // Initialize MenuMode
+-    MenuMode::init( config_ );
++    // MenuMode (the quick menu) is set up when MENU is first pressed
+ 
+     // Define control configuration
+     std::string controlsConfPath = Utils::combinePath( Configuration::absolutePath, "controls.conf" );
+@@ -972,6 +968,7 @@ void RetroFE::run( )
+             /// Launch menu
+             menuMode_ = true;
+             printf("Menu launched here\n");
++            MenuMode::initOnce( config_ );
+             res = MenuMode::launch();
+             menuMode_ = false;
+             forceRender(true);

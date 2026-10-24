@@ -47,14 +47,18 @@ cancel_sched_powerdown() {
     powerdown handle
 }
 
+source /usr/local/lib/bootmark
+bootmark "profile start"
+
 # Relocate HOME into the r/w partition
+# (each mkdir is a fork of several ms on the boot path; only run it when the
+# directory is missing)
 export HOME=/mnt/FunKey
-mkdir -p "${HOME}"
+[ -d "${HOME}" ] || mkdir -p "${HOME}"
 export GMENU2X_HOME="$HOME/.gmenu2x"
-mkdir -p "${GMENU2X_HOME}"
+[ -d "${GMENU2X_HOME}" ] || mkdir -p "${GMENU2X_HOME}"
 export RETROFE_HOME="$HOME/.retrofe"
-mkdir -p "${RETROFE_HOME}"
-mkdir -p "${RETROFE_HOME}/layouts"
+[ -d "${RETROFE_HOME}/layouts" ] || mkdir -p "${RETROFE_HOME}/layouts"
 
 # Resize the console to the terminal dimensions
 resize() {
@@ -74,19 +78,20 @@ resize() {
     fi
 }
 
-# Restore saved volume
-echo "Restore saved volume"
-volume set $(volume get) >/dev/null 2>&1
+# Saved volume: restored by /usr/local/sbin/starfling-audio-init
 
 # Restore saved brightness
 echo "Restore saved brightness"
 brightness set $(brightness get) >/dev/null 2>&1
+bootmark "volume and brightness restored"
 
 # Start Assembly tests (blocking process)
 assembly_tests >/dev/null 2>&1
+bootmark "assembly_tests done"
 
 # Restart saved application/game if any
 instant_play load
+bootmark "instant_play load done"
 
 # Start frontend
 echo "Start frontend"

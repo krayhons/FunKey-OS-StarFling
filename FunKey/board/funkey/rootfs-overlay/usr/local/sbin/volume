@@ -10,6 +10,14 @@ VOLUME_STEP=10
 NOTIF_DURATION=2
 DEFAULT_CARD1_FILE="/mnt/FunKey/.asoundrc"
 DEFAULT_CARD1_VOLUME_FILE="/mnt/FunKey/card1Volume"
+
+# VOLUME_KEEP_AMP=1: set the level, leave the speaker amp as it is. Used at
+# boot, where switching the amp on before audio starts playing pops through
+# the speaker; the frontend or starfling-amp-on-when-playing switches it on
+# once sound plays (StarFling Phase 1.3). This function shadows the command.
+if [ "${VOLUME_KEEP_AMP}" = "1" ]; then
+    audio_amp() { :; }
+fi
 usage() {
     >&2 echo "Usage: ${SELF} get"
     >&2 echo "       ${SELF} set  new_volume_percentage"

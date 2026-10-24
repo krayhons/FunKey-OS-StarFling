@@ -1,9 +1,14 @@
 #!/bin/sh
 
-# Check that we are in RW
-mount | grep -q "ext4 (rw" || exit 1
+# Already read-only: nothing to do
+mount | grep -q "ext4 (rw" || exit 0
 
-# Flush and mount in read only
-mount / -o remount,ro
+# Flush and mount in read only. The remount is refused ("Resource busy")
+# while a file on / is open for writing, and / then stays read-write, which
+# a power-off can corrupt, so report it instead of claiming success.
+if ! mount / -o remount,ro; then
+    echo "ro: / is still read-write" >&2
+    exit 1
+fi
 
 exit 0
