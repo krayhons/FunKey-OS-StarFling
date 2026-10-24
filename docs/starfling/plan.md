@@ -31,7 +31,7 @@ unmodified fork of Starling 3.1.3 at the start of Phase 0).
 | D3 | Boot behaviour stays as upstream: menu if powered off in the menu, the same game if powered off in a game. This is FunKey's existing Instant Play; Phase 1 must keep it. | K |
 | D4 | Keep RetroFE as the frontend in Phase 1. A lighter custom launcher is a candidate for a later phase. | K |
 | D5 | Build host: WSL2 (Ubuntu 22.04 distro, repo on the WSL ext4 filesystem, not `/mnt/c`). | K |
-| D6 | Coding agent: Claude Code. Device in the loop through adb over USB (usbipd-win), with K doing power cycles and phone-video timing. Serial is optional (see Phase 1 brief, "Measurement levels"). | K / plan |
+| D6 | Coding agent: Claude Code. Device in the loop through adb over USB, using Google's Windows `adb.exe` called from WSL2 (usbipd-win does not work with the RG Nano; `DEVLOOP.md` section 4), with K doing power cycles and phone-video timing. Serial is optional (see Phase 1 brief, "Measurement levels"). | K / plan |
 | D7 | Keep `.fwu` update compatibility and the `FunKey-` filename prefix (the installed firmware globs `/mnt/FunKey-*.fwu`). | plan |
 | D8 | Keep Recovery (`p1`) and the FN+START recovery entry working at all times. | plan |
 | D9 | **USB-C audio is required** (the RG Nano has no 3.5 mm jack). Keep it, but take it off the boot critical path: deferred loading, smarter detection, event-driven switching (task 1.5a). | K |
@@ -93,6 +93,15 @@ is listed separately because every later phase depends on it.
   **Result (2026-10-23, K): 6 of 7 tries OK**; only the first failed. Treated
   as a one-off. Repeat the same tries after any 1.5 or 1.6 change; a second
   failure reopens this.
+  **Second failure (2026-10-23, task 1.1): reopened.** Installing the 1.1
+  `.fwu` (auto-update at boot) completed, but the restart out of Recovery
+  hung on an inverted (black/white swapped) boot logo with no text for over
+  15 minutes. After a power cycle, FN+START, USB UNMOUNT and EXIT RECOVERY,
+  the new system booted normally; several later reboots, with and without
+  boot timing, were fine. Recovery and U-Boot are unchanged from Starling
+  3.1.3, so this is still upstream behaviour, now 2 failures in about 9
+  Recovery exits. Not in Phase 1 scope until 1.5/1.6; logged in the
+  PHASE-1-BOOT backlog.
 
 ## Model and task table
 

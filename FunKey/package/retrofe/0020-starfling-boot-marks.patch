@@ -1,0 +1,329 @@
+diff --git a/RetroFE/Source/CMakeLists.txt b/RetroFE/Source/CMakeLists.txt
+index d5680b5..e099e21 100755
+--- a/RetroFE/Source/CMakeLists.txt
++++ b/RetroFE/Source/CMakeLists.txt
+@@ -169,6 +169,7 @@ set(RETROFE_HEADERS
+ 	"${RETROFE_DIR}/Source/Menu/Menu.h"
+ 	"${RETROFE_DIR}/Source/Menu/MenuMode.h"
+ 	"${RETROFE_DIR}/Source/Sound/Sound.h"
++	"${RETROFE_DIR}/Source/Utility/BootMark.h"
+ 	"${RETROFE_DIR}/Source/Utility/Log.h"
+ 	"${RETROFE_DIR}/Source/Utility/Utils.h"
+ 	"${RETROFE_DIR}/Source/Video/IVideo.h"
+@@ -225,6 +226,7 @@ set(RETROFE_SOURCES
+ 	"${RETROFE_DIR}/Source/Menu/Menu.cpp"
+ 	"${RETROFE_DIR}/Source/Menu/MenuMode.cpp"
+ 	"${RETROFE_DIR}/Source/Sound/Sound.cpp"
++	"${RETROFE_DIR}/Source/Utility/BootMark.cpp"
+ 	"${RETROFE_DIR}/Source/Utility/Log.cpp"
+ 	"${RETROFE_DIR}/Source/Utility/Utils.cpp"
+ 	"${RETROFE_DIR}/Source/Video/GStreamerVideo.cpp"
+diff --git a/RetroFE/Source/Graphics/FontCache.cpp b/RetroFE/Source/Graphics/FontCache.cpp
+index b45e8df..85c5afd 100755
+--- a/RetroFE/Source/Graphics/FontCache.cpp
++++ b/RetroFE/Source/Graphics/FontCache.cpp
+@@ -16,6 +16,7 @@
+ 
+ #include "FontCache.h"
+ #include "Font.h"
++#include "../Utility/BootMark.h"
+ #include "../Utility/Log.h"
+ #include "../SDL.h"
+ #include <SDL/SDL_ttf.h>
+@@ -81,9 +82,18 @@ bool FontCache::loadFont(std::string fontPath, int fontSize, SDL_Color color)
+ 
+     if(it == fontFaceMap_.end())
+     {
++        double start = BootMark::nowMs();
+         Font *f = new Font(fontPath, fontSize, color);
+         f->initialize();
+         fontFaceMap_[key] = f;
++
++        if(BootMark::enabled())
++        {
++            std::stringstream ss;
++            ss << "font " << fontPath.substr(fontPath.find_last_of('/') + 1)
++               << " size " << fontSize << " took " << static_cast<int>(BootMark::nowMs() - start) << " ms";
++            BootMark::mark(ss.str());
++        }
+     }
+ 
+     return true;
+diff --git a/RetroFE/Source/Main.cpp b/RetroFE/Source/Main.cpp
+index c5b8b8f..27bc831 100755
+--- a/RetroFE/Source/Main.cpp
++++ b/RetroFE/Source/Main.cpp
+@@ -17,6 +17,7 @@
+ #include "Database/Configuration.h"
+ #include "Collection/CollectionInfoBuilder.h"
+ #include "Execute/Launcher.h"
++#include "Utility/BootMark.h"
+ #include "Utility/Log.h"
+ #include "Utility/Utils.h"
+ #include "RetroFE.h"
+@@ -33,6 +34,8 @@ static bool StartLogging();
+ 
+ int main(int argc, char **argv)
+ {
++    BootMark::initialize();
++    BootMark::mark("main");
+ 
+     // check to see if version or help was requested
+     if(argc > 1)
+@@ -99,6 +102,8 @@ int main(int argc, char **argv)
+         return -1;
+     }
+ 
++    BootMark::mark("config imported");
++
+     RetroFE p(config);
+ 
+     p.run();
+diff --git a/RetroFE/Source/RetroFE.cpp b/RetroFE/Source/RetroFE.cpp
+index d9f2d25..472d80a 100755
+--- a/RetroFE/Source/RetroFE.cpp
++++ b/RetroFE/Source/RetroFE.cpp
+@@ -24,6 +24,7 @@
+ #include "Execute/Launcher.h"
+ #include "Menu/Menu.h"
+ #include "Menu/MenuMode.h"
++#include "Utility/BootMark.h"
+ #include "Utility/Log.h"
+ #include "Utility/Utils.h"
+ #include "Collection/MenuParser.h"
+@@ -159,6 +160,7 @@ int RetroFE::initialize( void *context )
+         return -1;
+     }
+     Logger::write( Logger::ZONE_INFO, "RetroFE", "Initialized user controls" );
++    BootMark::mark( "input initialized" );
+ 
+     instance->db_ = new DB( Utils::combinePath( Configuration::absolutePath, "meta.db" ) );
+ 
+@@ -169,6 +171,7 @@ int RetroFE::initialize( void *context )
+         return -1;
+     }
+     Logger::write( Logger::ZONE_INFO, "RetroFE", "Initialized database" );
++    BootMark::mark( "database initialized" );
+ 
+     instance->metadb_ = new MetadataDatabase( *(instance->db_), instance->config_ );
+ 
+@@ -188,6 +191,7 @@ int RetroFE::initialize( void *context )
+     Logger::write( Logger::ZONE_INFO, "RetroFE", "Initializing signal USR1..." );
+     signal(SIGUSR1, instance->handle_sigusr1); 
+ 
++    BootMark::mark( "init thread done" );
+     instance->initialized = true;
+     return 0;
+ 
+@@ -332,6 +336,7 @@ void RetroFE::run( )
+ 
+     // Initialize SDL
+     if(! SDL::initialize( config_ ) ) return;
++    BootMark::mark( "sdl initialized" );
+     fontcache_.initialize( );
+ 
+     // Initialize MenuMode
+@@ -361,6 +366,7 @@ void RetroFE::run( )
+     VideoFactory::setNumLoops( videoLoop );
+     VideoFactory::createVideo( ); // pre-initialize the gstreamer engine
+     Video::setEnabled( videoEnable );
++    BootMark::mark( "video initialized" );
+ 
+     // Init thread
+     bool initMetaDbtmp;
+@@ -392,10 +398,17 @@ void RetroFE::run( )
+ 
+     // load the initial splash screen, unload it once it is complete
+     currentPage_        = loadSplashPage( );
++    BootMark::mark( "splash loaded" );
+     state               = RETROFE_ENTER;
+     bool splashMode     = true;
+     bool exitSplashMode = false;
+ 
++    // Boot marks for the first frames and the first handled input
++    bool splashFrameMarked = false;
++    bool menuFrameMarked   = false;
++    bool menuIdleMarked    = false;
++    bool firstInputMarked  = false;
++
+     Launcher l( config_ );
+     Menu     m( config_ );
+     preloadTime = static_cast<float>( GET_RUN_TIME_MS ) / 1000;
+@@ -460,7 +473,17 @@ void RetroFE::run( )
+                 {
+                     if ( currentPage_->isIdle( ) )
+                     {
++                        if ( !menuIdleMarked )
++                        {
++                            BootMark::mark( "menu accepts input" );
++                            menuIdleMarked = true;
++                        }
+                         state = processUserInput( currentPage_ );
++                        if ( state != RETROFE_IDLE && !firstInputMarked )
++                        {
++                            BootMark::mark( "first input handled" );
++                            firstInputMarked = true;
++                        }
+                     }
+                     lastLaunchReturnTime_ = 0;
+                 }
+@@ -509,7 +532,9 @@ void RetroFE::run( )
+                 currentPage_->deInitialize( );
+                 delete currentPage_;
+ 
++                BootMark::mark( "splash exit" );
+                 currentPage_ = loadPage( );
++                BootMark::mark( "layout loaded" );
+                 splashMode = false;
+                 if ( currentPage_ )
+                 {
+@@ -518,6 +543,7 @@ void RetroFE::run( )
+                     config_.getProperty( "firstCollection", firstCollection );
+                     config_.setProperty( "currentCollection", firstCollection );
+                     CollectionInfo *info = getCollection(firstCollection);
++                    BootMark::mark( "collection loaded " + firstCollection );
+ 
+                     currentPage_->pushCollection(info);
+ 
+@@ -535,6 +561,7 @@ void RetroFE::run( )
+ 
+                     currentPage_->onNewItemSelected( );
+                     currentPage_->reallocateMenuSpritePoints( );
++                    BootMark::mark( "menu built" );
+ 
+                     state = RETROFE_LOAD_ART;
+                 }
+@@ -1079,6 +1106,16 @@ void RetroFE::run( )
+                 //printf("render\n");
+                 mustRender_ = false;
+                 render( );
++                if ( !splashFrameMarked )
++                {
++                    BootMark::mark( "splash first frame" );
++                    splashFrameMarked = true;
++                }
++                if ( !splashMode && !menuFrameMarked )
++                {
++                    BootMark::mark( "menu first frame" );
++                    menuFrameMarked = true;
++                }
+ #ifdef PERIOD_FORCE_REFRESH
+ 		ticks_last_refresh = static_cast<int>(GET_RUN_TIME_MS);
+ #endif  //PERIOD_FORCE_REFRESH
+diff --git a/RetroFE/Source/Utility/BootMark.cpp b/RetroFE/Source/Utility/BootMark.cpp
+new file mode 100644
+index 0000000..8639dfe
+--- /dev/null
++++ b/RetroFE/Source/Utility/BootMark.cpp
+@@ -0,0 +1,65 @@
++/* This file is part of RetroFE.
++ *
++ * RetroFE is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * RetroFE is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with RetroFE.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include "BootMark.h"
++#include <fcntl.h>
++#include <time.h>
++#include <unistd.h>
++
++#define BOOTMARK_FLAG_PATH "/run/starfling-boot"
++#define BOOTMARK_KMSG_PATH "/dev/kmsg"
++
++// KERN_INFO keeps marks off the serial console under the "quiet" cmdline
++#define BOOTMARK_PREFIX "<6>bootmark: retrofe "
++
++int BootMark::fd_ = -1;
++
++void BootMark::initialize()
++{
++    if(access(BOOTMARK_FLAG_PATH, F_OK) != 0)
++    {
++        return;
++    }
++
++    // CLOEXEC: launched emulators must not inherit the descriptor
++    fd_ = open(BOOTMARK_KMSG_PATH, O_WRONLY | O_CLOEXEC);
++}
++
++bool BootMark::enabled()
++{
++    return fd_ >= 0;
++}
++
++void BootMark::mark(const std::string &label)
++{
++    if(fd_ < 0)
++    {
++        return;
++    }
++
++    // One write() is one kernel log record, so marks from the init thread
++    // and the main thread cannot interleave
++    std::string line = BOOTMARK_PREFIX + label;
++    ssize_t written = write(fd_, line.data(), line.size());
++    (void)written;
++}
++
++double BootMark::nowMs()
++{
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1000000.0;
++}
+diff --git a/RetroFE/Source/Utility/BootMark.h b/RetroFE/Source/Utility/BootMark.h
+new file mode 100644
+index 0000000..61eb5ad
+--- /dev/null
++++ b/RetroFE/Source/Utility/BootMark.h
+@@ -0,0 +1,40 @@
++/* This file is part of RetroFE.
++ *
++ * RetroFE is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * RetroFE is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with RetroFE.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#pragma once
++
++#include <string>
++
++// StarFling boot marks: timestamped lines in the kernel log, on the same
++// clock as the kernel's own messages and the init scripts' marks (see
++// /usr/local/lib/bootmark on the device).
++//
++// Marks are written only while /run/starfling-boot exists, which rcS
++// creates when the share partition has a starfling-boot folder. Otherwise
++// initialize() costs one access() call and mark() returns at once.
++class BootMark
++{
++public:
++    // Call once from main(), before any other thread starts
++    static void initialize();
++    static bool enabled();
++    static void mark(const std::string &label);
++
++    // Milliseconds on the monotonic clock, for timing a step in-process
++    static double nowMs();
++
++private:
++    static int fd_;
++};

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Write one boot mark from the command line, e.g. "bootmark my-test".
+# Scripts on the boot path source /usr/local/lib/bootmark instead, because
+# running this command costs a fork+exec (about 4.5 ms) per mark.
+
+source /usr/local/lib/bootmark
+bootmark "$@"
