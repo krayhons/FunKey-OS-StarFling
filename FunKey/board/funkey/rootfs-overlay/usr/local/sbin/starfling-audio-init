@@ -20,7 +20,9 @@ AUDIO_READY_FLAG=/run/starfling-audio-ready
 
 # Keep the external speaker amp (GPIO PF6, see audio_amp) off while the
 # codec's output powers up, or the power-up pops through the speaker. The
-# volume restore below switches it on again, as before. "low" sets the
+# amp stays off until sound actually plays (frontend, or
+# starfling-amp-on-when-playing for a resumed game): switching it on
+# before a stream starts pops too. "low" sets the
 # direction to output with the value 0 in one write.
 SPEAKER_AMP_GPIO=166
 
@@ -42,5 +44,5 @@ fi
 
 /etc/init.d/S50alsa-utils start >/dev/null 2>&1 \
     || echo "<4>starfling-audio-init: mixer restore failed" > /dev/kmsg
-volume set $(volume get) >/dev/null 2>&1 \
+VOLUME_KEEP_AMP=1 volume set $(volume get) >/dev/null 2>&1 \
     || echo "<4>starfling-audio-init: volume restore failed" > /dev/kmsg

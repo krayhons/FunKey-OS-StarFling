@@ -59,6 +59,7 @@ load)
 		starfling-audio-wait
 		;;
 	esac
+	starfling-amp-on-when-playing &
 	bootmark "game exec"
 	source "${RESUME_PLAY_FILE}"
 	rm -f "${RESUME_PLAY_FILE}"
