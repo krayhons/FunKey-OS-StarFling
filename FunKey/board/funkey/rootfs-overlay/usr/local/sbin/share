@@ -6,6 +6,7 @@
 SELF=${SELF:-$(basename $0)}
 LOCK_FILE=/var/lock/share.lock
 USB_GADGET_DELAY_S=3
+BACKING_STORE_WAIT_TENTHS=50
 
 source /usr/local/lib/utils
 source usb_gadget
@@ -115,8 +116,12 @@ init_share () {
 # Stop sharing the backing store partition
 stop_share () {
 
-    # Stop sharing the backing store partition
-    echo > $BACKING_STORE_FILE || die 11 "the backing store partition is still mounted on host"
+    # Stop sharing the backing store partition. Without a mass storage
+    # function (adb on, or the gadget not set up yet) nothing was shared:
+    # just remount, or /mnt stays missing until a reboot.
+    if [ -e $BACKING_STORE_FILE ]; then
+	echo > $BACKING_STORE_FILE || die 11 "the backing store partition is still mounted on host"
+    fi
 
     # Mount the backing store partition locally
     mount_share
@@ -126,8 +131,26 @@ stop_share () {
     return 0
 }
 
+# Wait up to BACKING_STORE_WAIT_TENTHS for the gadget's mass storage
+# function; fails if it does not appear
+wait_for_backing_store () {
+    local tenths=0
+    while [ ! -e $BACKING_STORE_FILE ]; do
+	[ ${tenths} -ge ${BACKING_STORE_WAIT_TENTHS} ] && return 1
+	sleep 0.1
+	tenths=$((tenths + 1))
+    done
+    return 0
+}
+
 # Start sharing the backing store partition
 start_share () {
+
+    # 0) The USB gadget is set up in the background a few seconds after boot
+    #    (init_share), and with adb on it has no mass storage function at
+    #    all. Wait for the function before giving up /mnt, and refuse if it
+    #    never comes: unmounting first left the games missing until reboot.
+    wait_for_backing_store || die 16 "USB sharing impossible, no USB drive function (is /mnt/adb set?)"
 
     # 1) Check if the backing store partition is already shared
     cat $BACKING_STORE_FILE | egrep -q ^/dev/mmcblk0p4 && die 12 "the backing store partition is already shared"
@@ -140,7 +163,10 @@ start_share () {
 
     # 4) Everything is now clear to start sharing the backing store partition
     info "start sharing the backing store partition"
-    echo /dev/mmcblk0p4 > $BACKING_STORE_FILE || die 14 "cannot share the backing store partition"
+    echo /dev/mmcblk0p4 > $BACKING_STORE_FILE || {
+	mount_share
+	die 14 "cannot share the backing store partition"
+    }
 }
 
 # Return if currently sharing
