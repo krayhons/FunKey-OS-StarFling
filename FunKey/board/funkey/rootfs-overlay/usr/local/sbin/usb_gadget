@@ -23,16 +23,6 @@ ID_VENDOR="0x1d6b"
 # USB PID for Multifunction Composite Gadget
 ID_PRODUCT="0x0104"
 
-# Get the CPU serial number
-SERIAL="$(grep Serial /proc/cpuinfo | sed 's/Serial\s*: \(\w*\)/\1/')"
-
-# Build a MAC address from it
-MAC="$(echo ${SERIAL} | sed 's/\(\w\w\)/:\1/g' | cut -b 2-)"
-
-# Derive host and device MAC addresses
-MAC_HOST="12$(echo ${MAC} | cut -b 3-)"
-MAC_DEV="02$(echo ${MAC} | cut -b 3-)"
-
 # Initialize the USB gadget
 init_usb_gadget() {
 
@@ -46,6 +36,18 @@ init_usb_gadget() {
 	adb start
 	return 0
     fi
+
+    # Get the CPU serial number. Computed here rather than when this file is
+    # sourced: share sources it on every boot, and these eight forks cost
+    # ~50 ms there although only gadget setup uses them.
+    local SERIAL="$(grep Serial /proc/cpuinfo | sed 's/Serial\s*: \(\w*\)/\1/')"
+
+    # Build a MAC address from it
+    local MAC="$(echo ${SERIAL} | sed 's/\(\w\w\)/:\1/g' | cut -b 2-)"
+
+    # Derive host and device MAC addresses
+    local MAC_HOST="12$(echo ${MAC} | cut -b 3-)"
+    local MAC_DEV="02$(echo ${MAC} | cut -b 3-)"
 
     # Get the legacy drivers out of the way
     modprobe -r g_ether
