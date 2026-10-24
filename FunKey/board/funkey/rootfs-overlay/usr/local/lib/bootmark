@@ -32,5 +32,21 @@ bootmark_init() {
     # Userspace writes to /dev/kmsg are rate limited to 10 per 5 s by
     # default, which would drop most marks. Reset at every boot.
     echo on > /proc/sys/kernel/printk_devkmsg
-    : > "$STARFLING_BOOT_FLAG"
+
+    # Record the flags that decide whether this boot is a timing sample as
+    # they are now; by the time the collector runs, the agent or an
+    # autoround may already have changed them for the next boot
+    {
+	bootmark_flag adb /mnt/adb
+	bootmark_flag usbnet /mnt/usbnet
+	bootmark_flag bootchart "$STARFLING_BOOT_DIR/bootchart"
+    } > "$STARFLING_BOOT_FLAG"
+}
+
+bootmark_flag() {
+    if [ -e "$2" ]; then
+	echo "$1=1"
+    else
+	echo "$1=0"
+    fi
 }

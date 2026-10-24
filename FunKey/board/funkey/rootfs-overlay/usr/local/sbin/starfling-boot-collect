@@ -15,8 +15,13 @@ COLLECT_DELAY_S=30
 MOUNT_RETRY_S=10
 MOUNT_RETRIES=60
 BOOTCHART_WAIT_S=10
+ADB_FLAG=/mnt/adb
+INSTANT_PLAY_FILE=/mnt/instant_play
+RESUME_PLAY_FILE=/mnt/resume_play
 
 source /usr/local/lib/bootmark
+
+AUTOROUND_FILE="${STARFLING_BOOT_DIR}/autoround"
 
 [ -e "${STARFLING_BOOT_FLAG}" ] || exit 0
 
@@ -45,12 +50,11 @@ out="${STARFLING_BOOT_DIR}/${id}"
 mkdir -p "${out}"
 
 # Flags and versions that decide whether a boot is a valid timing sample.
-# adb or usbnet adds a fixed sleep 5 to the boot path (S10share).
+# adb or usbnet adds a fixed sleep 5 to the boot path (S10share). The flags
+# are the ones rcS saw at boot, not the current ones.
 {
     echo "boot=${id}"
-    echo "adb=$([ -f /mnt/adb ] && echo 1 || echo 0)"
-    echo "usbnet=$([ -f /mnt/usbnet ] && echo 1 || echo 0)"
-    echo "bootchart=$([ -f "${STARFLING_BOOT_DIR}/bootchart" ] && echo 1 || echo 0)"
+    cat "${STARFLING_BOOT_FLAG}"
     echo "cmdline=$(cat /proc/cmdline)"
     grep -E '^(NAME|VERSION_ID)=' /etc/os-release
     echo "uptime_at_collect=$(cut -d ' ' -f 1 /proc/uptime)"
@@ -73,3 +77,44 @@ fi
 sync
 
 notif set 5 "Boot data ${id} saved"
+
+# Autoround: timing boots without anyone at the device. While the file
+# holds a count N, each boot saves its data and reboots, N times. The last
+# one restores the adb flag, so the agent that started the round gets adb
+# back on the boot after. adb itself must be off during the round: it adds
+# a fixed 5 s to boot. These are warm reboots, not power-ons, which does
+# not matter for times on the kernel clock.
+[ -f "${AUTOROUND_FILE}" ] || exit 0
+
+remaining=$(cat "${AUTOROUND_FILE}")
+case "${remaining}" in
+    ''|*[!0-9]*)
+	echo "${SELF}: bad autoround count '${remaining}', stopping" > /dev/kmsg
+	rm -f "${AUTOROUND_FILE}"
+	: > "${ADB_FLAG}"
+	sync
+	exit 1
+	;;
+esac
+
+remaining=$((remaining - 1))
+if [ ${remaining} -gt 0 ]; then
+    echo ${remaining} > "${AUTOROUND_FILE}"
+
+    # Never reboot on a count that did not go down: that would loop forever
+    if [ "$(cat "${AUTOROUND_FILE}")" != "${remaining}" ]; then
+	echo "${SELF}: cannot update autoround count, stopping" > /dev/kmsg
+	exit 1
+    fi
+else
+    rm -f "${AUTOROUND_FILE}"
+    : > "${ADB_FLAG}"
+fi
+
+# A resumed game is running from the file Instant Play moved aside; put it
+# back so the next boot resumes the same game from the same savestate
+[ -f "${RESUME_PLAY_FILE}" ] && cp "${RESUME_PLAY_FILE}" "${INSTANT_PLAY_FILE}"
+
+sync
+bootmark "autoround reboot, ${remaining} left"
+reboot
