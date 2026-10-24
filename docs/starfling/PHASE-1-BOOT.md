@@ -73,8 +73,8 @@ No special hardware is required for Phase 1. Serial is a nice-to-have.
 
 | Level | Needs | Gives | Use |
 |---|---|---|---|
-| **0** | A phone that records 240 fps slow-motion video; a USB cable | Wall-clock T0 → T_menu / T_game. On-device timestamps (kernel `PRINTK_TIME`, a `bootmark` log from `/proc/uptime` at each stage, BusyBox bootchart, RetroFE timestamps) saved to `/mnt/starfling-boot/` and read on the PC as a USB drive. **Pre-kernel time (BROM + SPL + U-Boot + decompress) = video total − kernel uptime at T_menu.** | Required. K's part: power-cycle and film; about 1 minute per boot |
-| **1** | Level 0 + usbipd-win on Windows to pass the device's USB into WSL2 | Claude Code can `adb shell`, `adb push` builds of single files (scripts, RetroFE binary), pull logs, and run `reboot` itself | Strongly recommended; turns most iterations into minutes with no reflash |
+| **0** | A phone that records 240 fps slow-motion video; a USB cable | Wall-clock T0 → T_menu / T_game. On-device timestamps (boot marks from the init scripts and RetroFE in the kernel log, next to the kernel's own `PRINTK_TIME` lines; optional BusyBox bootchart) saved to `/mnt/starfling-boot/NNN/` and read on the PC as a USB drive. **Pre-kernel time (BROM + SPL + U-Boot + decompress) = video time to the first menu frame − kernel time at RetroFE's `menu first frame` mark.** | Required. K's part: power-cycle and film; about 1 minute per boot |
+| **1** | Level 0 + Google's Windows `adb.exe`, called from WSL2 (`/mnt/c/platform-tools/adb.exe`), with `/mnt/adb` set on the device. usbipd-win does not work with the RG Nano (`DEVLOOP.md` section 4) | Claude Code can `adb shell`, `adb push` builds of single files (scripts, RetroFE binary), pull logs, and run `reboot` itself | Strongly recommended; turns most iterations into minutes with no reflash |
 | **2** | A 3.3 V USB-to-UART adapter (CP2102, CH340 or FTDI, about $5–10), soldering or pogo pins, opening the RG Nano | Live SPL/U-Boot/kernel console with timestamps; rescue when a build does not reach userspace | Optional. Only if U-Boot work (1.6) stalls. UART pad locations on the RG Nano board are **not confirmed** by anything found so far; find them before buying. Never use a 5 V adapter |
 
 The agent cannot press the power button or see the screen. Every
@@ -84,8 +84,9 @@ K reports the video times.
 
 **Measurement round (K):** for each of the 10 boots: power off, wait 5 s,
 start filming, power on, press D-pad right once the menu appears, stop. Read
-the times from the video frame counter. Repeat with a game resumed. The agent
-supplies a CSV template.
+the times from the video frame counter. Repeat with a game resumed. The exact
+steps are in `DEVLOOP.md` section 7; the CSV template is
+`docs/starfling/boot-timing-template.csv`.
 
 ## Levers and estimated savings
 
@@ -134,17 +135,41 @@ regression checklist ticked. Order is fixed for 1.1–1.2; after that, 1.2's
 report decides the order.
 
 ### 1.1 Instrumentation (no behaviour change)
-- Add `bootmark <label>`: appends `uptime-seconds label` to
-  `/run/bootmarks` (tmpfs), flushed to `/mnt/starfling-boot/<n>.log` once
-  `/mnt` is mounted. Call it at: rcS start, `/mnt` mounted, each S-script
-  start/end, frontend exec, game exec.
-- Optional BusyBox `bootchartd` build flag (debug builds only).
-- RetroFE: log monotonic timestamps at main(), SDL init done, layout loaded,
-  fonts loaded, collection built, first frame presented, first input accepted.
-  Keep the log on `/mnt` in debug builds (the README notes it is on tmpfs today).
-- Save `dmesg` to the same folder at the end of boot.
-- A host-side script (`tools/starfling/boot-report.py`) turns logs + K's
-  video CSV into one timeline table.
+
+As built (2026-10-23). Two changes from the original plan, both for lower
+overhead and less to maintain:
+
+- **One build, switched at runtime, instead of a separate debug build.**
+  Instrumentation is on while the folder `/mnt/starfling-boot/` exists on
+  the share drive. Without it, each hook is a single file test and the boot
+  behaves as before (checked on the device: no marks, no collector, kernel
+  log settings untouched).
+- **Marks go to the kernel log (`/dev/kmsg`), not `/run/bootmarks`.** They get
+  the kernel's microsecond timestamps on the same clock as kernel messages,
+  instead of the 10 ms steps of `/proc/uptime`. `rcS` sets
+  `printk_devkmsg=on` when enabled; the default rate limit (10 per 5 s)
+  would drop most marks.
+
+What is there:
+
+- `/usr/local/lib/bootmark` (sourced; a fork+exec costs about 4.5 ms on the
+  RG Nano, a mark about 0.25 ms) and a `bootmark <label>` command for ad-hoc
+  use. Marks: rcS start (after `/mnt` is mounted by `mount -a`), the start of
+  each S-script, rcS end, `.profile` steps, frontend exec, game exec.
+- RetroFE patch `0020-starfling-boot-marks.patch`: main, config imported, SDL
+  and video initialised, splash loaded and first frame, init thread (input,
+  `meta.db`), each font load with its duration, layout loaded, collection
+  loaded, menu built, menu first frame, menu accepts input, first input
+  handled.
+- `starfling-boot-collect`, started by rcS at nice 19: 30 s after rcS ends it
+  saves `dmesg.txt`, `retrofe.log`, `info.txt` (adb/usbnet/bootchart flags,
+  version, cmdline) and, if requested, `bootchart.tgz` to
+  `/mnt/starfling-boot/NNN/`, then shows "Boot data NNN saved".
+- Optional bootchart: a file named `bootchart` in the folder. BusyBox
+  `bootchartd` (and seamless gzip for its `tar -z`) is now in every build,
+  but runs only on request.
+- `tools/starfling/boot-report.py` turns the folders and K's video CSV into
+  per-boot timelines and per-path medians.
 - **Accept:** a debug build produces a complete timeline; production build
   behaviour unchanged; overhead under 20 ms.
 
@@ -270,7 +295,7 @@ phase item, logged in the backlog.
 | A change stops the device reaching userspace | SD boot means reflash from Windows; keep the known-good card; Recovery on `p1` is untouched except in 1.6 |
 | Battery-latched unresponsive state (noted in the Starling README) | Briefly disconnect the battery; document in `DEVLOOP.md` |
 | Timing noise between boots | Medians of 10 boots, same card, same state, device at room temperature and charged |
-| WSL2 specifics | Repo on the WSL ext4 filesystem; Ubuntu 22.04 (24.04 lacks `python3-distutils`); usbipd-win for adb; flash cards from Windows (balenaEtcher) |
+| WSL2 specifics | Repo on the WSL ext4 filesystem; Ubuntu 22.04 (24.04 lacks `python3-distutils`); Windows `adb.exe` for adb (usbipd-win fails); flash cards from Windows (balenaEtcher) |
 
 ## Backlog (not in Phase 1)
 
@@ -281,3 +306,13 @@ phase item, logged in the backlog.
 - Emulators reopen their audio device when a USB-C dongle is plugged or
   unplugged mid-game (per-core phases).
 - Lighter launcher (later phase).
+- The FAT share partition (`p4`) is logged as "Volume was not properly
+  unmounted" on every boot, even after a clean `reboot`, so its dirty bit is
+  never cleared at shutdown. No boot-time cost (no fsck runs), but Instant
+  Play saves, favorites and settings live there. Find out why the shutdown
+  path (`inittab` `umount -r /mnt`, `powerdown`) leaves it dirty.
+- Leaving Recovery sometimes hangs on an inverted (black/white swapped) boot
+  logo and needs a power cycle: 2 of about 9 exits so far, including the
+  automatic restart after a `.fwu` install (`plan.md`, task 0.5). Upstream
+  behaviour. Look at it before or with 1.5/1.6; a serial console (Level 2)
+  would show where it stops.

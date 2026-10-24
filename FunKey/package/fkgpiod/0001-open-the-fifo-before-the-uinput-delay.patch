@@ -1,0 +1,40 @@
+Open the keymap FIFO before the uinput settle delay
+
+keymap writes block until fkgpiod has the FIFO open. fkgpiod opened it
+only after init_uinput()'s sleep(1), so Instant Play's "keymap resume"
+held up a resumed game by about 0.55 s at boot (StarFling Phase 1.2).
+
+--- a/main.c
++++ b/main.c
+@@ -221,14 +221,13 @@
+         openlog("fkgpiod", LOG_PERROR | LOG_PID | LOG_NDELAY, LOG_DAEMON);
+     }
+ 
+-    /* Initialize the uinput device */
+-    init_uinput();
+-
+-    /* Initialize the GPIO mapping */
++    /* Initialize the GPIO mapping first: it opens the command FIFO, and
++     * until the FIFO has a reader, every "keymap" write blocks. Instant
++     * Play's "keymap resume" runs during boot, so opening the FIFO only
++     * after init_uinput()'s 1 s settle delay held up a resumed game by
++     * about 0.55 s. Commands written meanwhile wait in the FIFO and are
++     * handled once the main loop starts. */
+     if (init_gpio_mapping(config_file, &mapping_list) == false) {
+-
+-        /* Close the uinput device */
+-        close_uinput();
+ 	if (daemon) {
+ 
+ 	    /* Close the syslog */
+@@ -236,6 +235,10 @@
+ 	}
+         exit(EXIT_FAILURE);
+     }
++
++    /* Initialize the uinput device */
++    init_uinput();
++
+     while (true) {
+ 
+         /* Main loop to handle the GPIOs */

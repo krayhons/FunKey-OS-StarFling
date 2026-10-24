@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Boot marks for StarFling boot-time work (Phase 1 task 1.1).
+#
+# Instrumentation is on only while the folder /mnt/starfling-boot exists on
+# the share partition; create it over MOUNT USB to turn it on. rcS checks
+# once and leaves /run/starfling-boot behind, and every mark after that
+# tests only for that file, so a boot without the folder pays one stat per
+# mark and writes nothing.
+#
+# A mark is a line in the kernel log, "bootmark: <label>". The kernel stamps
+# it with microsecond resolution on the same clock as its own messages, so
+# userspace and kernel events land in one timeline (dmesg) without any
+# clock conversion. /proc/uptime would only give 10 ms steps.
+#
+# Source this file instead of running a "bootmark" command: on the RG Nano a
+# fork+exec costs about 4.5 ms, while a mark written from a sourced function
+# costs about 0.25 ms (measured 2026-10-23).
+
+STARFLING_BOOT_DIR=/mnt/starfling-boot
+STARFLING_BOOT_FLAG=/run/starfling-boot
+
+bootmark() {
+    [ -e "$STARFLING_BOOT_FLAG" ] || return 0
+    echo "<6>bootmark: $*" > /dev/kmsg
+}
+
+# Called once, by rcS, after /mnt and /run are mounted
+bootmark_init() {
+    [ -d "$STARFLING_BOOT_DIR" ] || return 0
+
+    # Userspace writes to /dev/kmsg are rate limited to 10 per 5 s by
+    # default, which would drop most marks. Reset at every boot.
+    echo on > /proc/sys/kernel/printk_devkmsg
+
+    # Record the flags that decide whether this boot is a timing sample as
+    # they are now; by the time the collector runs, the agent or an
+    # autoround may already have changed them for the next boot
+    {
+	bootmark_flag adb /mnt/adb
+	bootmark_flag usbnet /mnt/usbnet
+	bootmark_flag bootchart "$STARFLING_BOOT_DIR/bootchart"
+    } > "$STARFLING_BOOT_FLAG"
+}
+
+bootmark_flag() {
+    if [ -e "$2" ]; then
+	echo "$1=1"
+    else
+	echo "$1=0"
+    fi
+}

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Wait until starfling-audio-init has released the audio device, at most
+# AUDIO_READY_TIMEOUT_TENTHS tenths of a second, so that the frontend or a
+# resumed game does not open it while the amp warm-up holds it (EBUSY).
+# Returns at once after boot, when the flag already exists. A timeout is not
+# an error: the caller starts anyway, as it did before the warm-up existed.
+
+AUDIO_READY_FLAG=/run/starfling-audio-ready
+AUDIO_READY_TIMEOUT_TENTHS=15
+
+tenths=0
+while [ ! -e "${AUDIO_READY_FLAG}" ] && [ ${tenths} -lt ${AUDIO_READY_TIMEOUT_TENTHS} ]; do
+    sleep 0.1
+    tenths=$((tenths + 1))
+done
+exit 0

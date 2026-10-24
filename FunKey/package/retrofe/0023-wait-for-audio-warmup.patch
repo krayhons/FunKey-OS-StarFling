@@ -1,0 +1,36 @@
+diff --git a/RetroFE/Source/SDL.cpp b/RetroFE/Source/SDL.cpp
+index 29febe9..65efb4d 100755
+--- a/RetroFE/Source/SDL.cpp
++++ b/RetroFE/Source/SDL.cpp
+@@ -16,9 +16,14 @@
+ 
+ 
+ #include "SDL.h"
++#include <unistd.h>
+ #include "Database/Configuration.h"
+ #include "Utility/Log.h"
+ #include <SDL/SDL_mixer.h>
++
++#define AUDIO_READY_FLAG          "/run/starfling-audio-ready"
++#define AUDIO_READY_WAIT_STEP_MS  10
++#define AUDIO_READY_WAIT_STEPS    150
+ //#include <SDL/SDL_rotozoom.h>
+ //#include <SDL/SDL_gfxBlitFunc.h>
+ 
+@@ -249,6 +254,16 @@ bool SDL::initialize( Configuration &config )
+         }
+     }
+ 
++    // StarFling: the boot's amp warm-up (starfling-audio-init) holds the
++    // audio device for ~0.8 s after power-on, and opening it meanwhile
++    // fails. Wait for its ready flag here rather than before starting
++    // RetroFE: by now ~0.5 s of startup has passed, so there is usually
++    // nothing left to wait for. Bounded, so audio never blocks the menu.
++    for ( int i = 0; i < AUDIO_READY_WAIT_STEPS && access( AUDIO_READY_FLAG, F_OK ) != 0; i++ )
++    {
++        SDL_Delay( AUDIO_READY_WAIT_STEP_MS );
++    }
++
+     if ( retVal && Mix_OpenAudio( audioRate, audioFormat, audioChannels, audioBuffers ) == -1 )
+     {
+         std::string error = Mix_GetError( );

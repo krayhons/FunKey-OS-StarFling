@@ -1,0 +1,106 @@
+#!/bin/sh
+
+# StarFling: Buildroot's rcS (package/initscripts) plus one boot mark at the
+# start of each init script. The end of one script is the start of the next,
+# so a second mark per script would add cost and no information. See
+# /usr/local/lib/bootmark.
+
+source /usr/local/lib/bootmark
+bootmark_init
+bootmark "rcS start"
+
+# Optional bootchart (CPU, disk and per-process samples every 0.2 s). Its
+# sampling slows the boot, so a bootchart boot is never a timing sample.
+if [ -e "$STARFLING_BOOT_FLAG" ] && [ -f "$STARFLING_BOOT_DIR/bootchart" ]; then
+    bootchartd start
+fi
+
+# Services nothing on the way to the menu or a resumed game needs. They
+# start LATE_DELAY_S after the rest, in the background, so they do not
+# compete with the frontend or emulator for the single CPU core (StarFling
+# Phase 1.3). rcK still stops them at shutdown, which is where S20urandom
+# saves its seed. low_bat_check starts a few seconds later than before.
+# S02sysctl, S03rclocal and S04modules find nothing to do on StarFling (no
+# sysctl config, an empty rc.local, no module list); they stay for anyone
+# who adds some, and rc.local traditionally runs last anyway.
+LATE_SERVICES=" S02sysctl S03rclocal S04modules S12low-bat-check S13system-stats S20urandom S40network S41dhcpcd S42dropbear "
+# Needed soon but not before the login shell: started in the background as
+# soon as the others are done. S49audio's first pass removes a stale USB
+# audio route long before RetroFE opens audio (~0.5 s after it starts).
+PARALLEL_SERVICES=" S49audio S52audioinit "
+# Started from inittab by starfling-audio-init instead, in the order audio
+# setup needs; rcK still runs their stop action (alsactl store)
+STARTED_ELSEWHERE=" S50alsa-utils "
+LATE_DELAY_S=3
+late=""
+parallel=""
+
+# Start all init scripts in /etc/init.d
+# executing them in numerical order.
+#
+for i in /etc/init.d/S??* ;do
+
+     # Ignore dangling symlinks (if any).
+     [ ! -f "$i" ] && continue
+
+     case "$STARTED_ELSEWHERE" in
+	*" ${i##*/} "*)
+	    continue
+	    ;;
+     esac
+
+     case "$LATE_SERVICES" in
+	*" ${i##*/} "*)
+	    late="$late $i"
+	    continue
+	    ;;
+     esac
+
+     case "$PARALLEL_SERVICES" in
+	*" ${i##*/} "*)
+	    parallel="$parallel $i"
+	    continue
+	    ;;
+     esac
+
+     bootmark "${i##*/}"
+
+     case "$i" in
+	*.sh)
+	    # Source shell script for speed.
+	    (
+		trap - INT QUIT TSTP
+		set start
+		. $i
+	    )
+	    ;;
+	*)
+	    # No sh extension, so fork subprocess.
+	    $i start
+	    ;;
+    esac
+done
+
+bootmark "rcS end"
+
+if [ -n "$parallel" ]; then
+    (
+	for i in $parallel; do
+	    $i start
+	done
+    ) >/dev/null 2>&1 &
+fi
+
+if [ -n "$late" ]; then
+    (
+	sleep $LATE_DELAY_S
+	for i in $late; do
+	    $i start
+	done
+    ) >/dev/null 2>&1 &
+fi
+
+# nice keeps the collector's startup from competing with the rest of boot
+if [ -e "$STARFLING_BOOT_FLAG" ]; then
+    nice -n 19 starfling-boot-collect >/dev/null 2>&1 &
+fi
