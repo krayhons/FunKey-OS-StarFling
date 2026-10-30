@@ -316,3 +316,9 @@ phase item, logged in the backlog.
   automatic restart after a `.fwu` install (`plan.md`, task 0.5). Upstream
   behaviour. Look at it before or with 1.5/1.6; a serial console (Level 2)
   would show where it stops.
+- A `.fwu` update resets the theme to RetroRoomCovers: `layout.conf` lives
+  on the rootfs, which the update replaces (upstream behaviour; seen
+  2026-10-30). Consider keeping the user's choice on the share partition.
+- Rebooting while a resumed gpSP game runs can leave `/etc/asound.conf`
+  moved to `.BAK` (the Instant Play wrapper's `mv` back never runs); the
+  next normal game exit restores it. Seen once, 2026-10-30.
