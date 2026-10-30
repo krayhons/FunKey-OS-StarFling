@@ -7,7 +7,7 @@ SELF=${SELF:-$(basename $0)}
 LOCK_FILE=/var/lock/share.lock
 USB_GADGET_DELAY_S=3
 BACKING_STORE_WAIT_TENTHS=50
-ADB_NOTICE_S=5
+ADB_NOTICE_S=4
 
 source /usr/local/lib/utils
 source usb_gadget
