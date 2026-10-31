@@ -1,0 +1,56 @@
+From d367b3906649bfc38a273b8925e621154dcc5cba Mon Sep 17 00:00:00 2001
+From: krayhons <kevin@elementkombucha.com>
+Date: Fri, 30 Oct 2026 21:36:57 -0500
+Subject: [PATCH] Probe the backlight and USB host controllers asynchronously
+
+On the RG Nano these probes take ~76 ms (pwm-backlight) and ~100 ms
+(EHCI + OHCI) during boot, in initcall order before sunxi-mmc, so the
+SD card's own initialisation (~210 ms, mostly waiting) starts late and
+root is mounted at ~0.59 s. Asynchronous probing lets them overlap the
+card initialisation; the kernel still waits for all probes before
+mounting root (wait_for_device_probe).
+---
+ drivers/usb/host/ehci-platform.c | 1 +
+ drivers/usb/host/ohci-platform.c | 1 +
+ drivers/video/backlight/pwm_bl.c | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/drivers/usb/host/ehci-platform.c b/drivers/usb/host/ehci-platform.c
+index 6fcd332..6624644 100644
+--- a/drivers/usb/host/ehci-platform.c
++++ b/drivers/usb/host/ehci-platform.c
+@@ -430,6 +430,7 @@ static struct platform_driver ehci_platform_driver = {
+ 	.shutdown	= usb_hcd_platform_shutdown,
+ 	.driver		= {
+ 		.name	= "ehci-platform",
++		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+ 		.pm	= &ehci_platform_pm_ops,
+ 		.of_match_table = vt8500_ehci_ids,
+ 		.acpi_match_table = ACPI_PTR(ehci_acpi_match),
+diff --git a/drivers/usb/host/ohci-platform.c b/drivers/usb/host/ohci-platform.c
+index 742cefa..970f844 100644
+--- a/drivers/usb/host/ohci-platform.c
++++ b/drivers/usb/host/ohci-platform.c
+@@ -388,6 +388,7 @@ static struct platform_driver ohci_platform_driver = {
+ 	.shutdown	= usb_hcd_platform_shutdown,
+ 	.driver		= {
+ 		.name	= "ohci-platform",
++		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+ 		.pm	= &ohci_platform_pm_ops,
+ 		.of_match_table = ohci_platform_ids,
+ 	}
+diff --git a/drivers/video/backlight/pwm_bl.c b/drivers/video/backlight/pwm_bl.c
+index 1c2289d..6ee130f 100644
+--- a/drivers/video/backlight/pwm_bl.c
++++ b/drivers/video/backlight/pwm_bl.c
+@@ -448,6 +448,7 @@ static const struct dev_pm_ops pwm_backlight_pm_ops = {
+ static struct platform_driver pwm_backlight_driver = {
+ 	.driver		= {
+ 		.name		= "pwm-backlight",
++		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+ 		.pm		= &pwm_backlight_pm_ops,
+ 		.of_match_table	= of_match_ptr(pwm_backlight_of_match),
+ 	},
+-- 
+2.34.1
+
