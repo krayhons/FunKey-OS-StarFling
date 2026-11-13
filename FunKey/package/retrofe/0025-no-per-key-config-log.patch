@@ -1,0 +1,19 @@
+diff --git a/RetroFE/Source/Database/Configuration.cpp b/RetroFE/Source/Database/Configuration.cpp
+index 156aa4a..9ef5140 100755
+--- a/RetroFE/Source/Database/Configuration.cpp
++++ b/RetroFE/Source/Database/Configuration.cpp
+@@ -392,11 +392,9 @@ bool Configuration::parseLine(std::string collection, std::string keyPrefix, std
+         /* Set new pair <key, value> */
+         properties_.insert(PropertiesPair(key, value));
+ 
+-        std::stringstream ss;
+-        ss << "Dump: "  << "\"" << key << "\" = \"" << value << "\"";
+-
+-
+-        Logger::write(Logger::ZONE_INFO, "Configuration", ss.str());
++        // StarFling: no "Dump:" log line per key. RetroFE reads ~260
++        // keys at startup and each line costs a formatted, flushed log
++        // write: ~45 ms of the menu boot on the RG Nano.
+         retVal = true;
+     }
+     else
