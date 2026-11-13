@@ -1,0 +1,101 @@
+SDL fbcon: read the console keymaps on first use
+
+FB_OpenKeyboard read all 256 console keymaps (256 x 128 KDGKBENT
+ioctls) at every SDL start: ~190 ms on the RG Nano, the largest part
+of RetroFE's SDL_Init. Only map 0 is needed at startup (it fills the
+scancode table); the others are used only to translate keys to UNICODE
+when the app asks for it, and SDL only ever indexes the 16 maps made of
+the shift/ctrl/alt/altgr bits. Read map 0 at startup and any other map
+the first time TranslateKey needs it.
+
+--- a/src/video/fbcon/SDL_fbevents.c
++++ b/src/video/fbcon/SDL_fbevents.c
+@@ -61,6 +61,11 @@
+ /* The translation tables from a console scancode to a SDL keysym */
+ #define NUM_VGAKEYMAPS	(1<<KG_CAPSSHIFT)
+ static Uint16 vga_keymap[NUM_VGAKEYMAPS][NR_KEYS];
++/* StarFling: maps are read from the console on first use (see
++   FB_vgakeymap); reading all 256 took 32768 ioctls, ~190 ms on the
++   RG Nano, at every SDL start. */
++static Uint8 vga_keymap_loaded[NUM_VGAKEYMAPS];
++static int vga_keymap_fd = -1;
+ static SDLKey keymap[128];
+ static Uint16 keymap_temp[128]; /* only used at startup */
+ static SDL_keysym *TranslateKey(int scancode, SDL_keysym *keysym);
+@@ -70,19 +75,17 @@
+ 
+    FIXME: Add keyboard LED handling code
+  */
+-static void FB_vgainitkeymaps(int fd)
++static void FB_vgaloadkeymap(int fd, int map)
+ {
+ 	struct kbentry entry;
+-	int map, i;
++	int i;
+ 
+-	/* Don't do anything if we are passed a closed keyboard */
++	vga_keymap_loaded[map] = 1;
++	SDL_memset(vga_keymap[map], 0, NR_KEYS*sizeof(Uint16));
+ 	if ( fd < 0 ) {
+ 		return;
+ 	}
+-
+-	/* Load all the keysym mappings */
+-	for ( map=0; map<NUM_VGAKEYMAPS; ++map ) {
+-		SDL_memset(vga_keymap[map], 0, NR_KEYS*sizeof(Uint16));
++	{
+ 		for ( i=0; i<NR_KEYS; ++i ) {
+ 			entry.kb_table = map;
+ 			entry.kb_index = i;
+@@ -147,6 +150,29 @@
+ 	}
+ }
+ 
++/* Keymap 'map' (a combination of KG_* modifier bits), read on first use */
++static Uint16 *FB_vgakeymap(int map)
++{
++	if ( !vga_keymap_loaded[map] ) {
++		FB_vgaloadkeymap(vga_keymap_fd, map);
++	}
++	return vga_keymap[map];
++}
++
++static void FB_vgainitkeymaps(int fd)
++{
++	/* Don't do anything if we are passed a closed keyboard */
++	if ( fd < 0 ) {
++		return;
++	}
++
++	vga_keymap_fd = fd;
++	SDL_memset(vga_keymap_loaded, 0, sizeof(vga_keymap_loaded));
++
++	/* Map 0 fills keymap_temp, used by FB_InitOSKeymap */
++	FB_vgaloadkeymap(fd, 0);
++}
++
+ int FB_InGraphicsMode(_THIS)
+ {
+ 	return((keyboard_fd >= 0) && (saved_kbd_mode >= 0));
+@@ -1226,17 +1252,17 @@
+ 		if ( modstate & KMOD_RALT ) {
+ 			map |= (1<<KG_ALTGR);
+ 		}
+-		if ( KTYP(vga_keymap[map][scancode]) == KT_LETTER ) {
++		if ( KTYP(FB_vgakeymap(map)[scancode]) == KT_LETTER ) {
+ 			if ( modstate & KMOD_CAPS ) {
+ 				map ^= (1<<KG_SHIFT);
+ 			}
+ 		}
+-		if ( KTYP(vga_keymap[map][scancode]) == KT_PAD ) {
++		if ( KTYP(FB_vgakeymap(map)[scancode]) == KT_PAD ) {
+ 			if ( modstate & KMOD_NUM ) {
+-				keysym->unicode=KVAL(vga_keymap[map][scancode]);
++				keysym->unicode=KVAL(FB_vgakeymap(map)[scancode]);
+ 			}
+ 		} else {
+-			keysym->unicode = KVAL(vga_keymap[map][scancode]);
++			keysym->unicode = KVAL(FB_vgakeymap(map)[scancode]);
+ 		}
+ 	}
+ 	return(keysym);
