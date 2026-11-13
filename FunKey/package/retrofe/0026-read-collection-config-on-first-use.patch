@@ -1,0 +1,189 @@
+diff --git a/RetroFE/Source/Database/Configuration.cpp b/RetroFE/Source/Database/Configuration.cpp
+index 9ef5140..ad0890f 100755
+--- a/RetroFE/Source/Database/Configuration.cpp
++++ b/RetroFE/Source/Database/Configuration.cpp
+@@ -113,6 +113,7 @@ bool Configuration::import(std::string keyPrefix, std::string file)
+ 
+ bool Configuration::import(std::string collection, std::string keyPrefix, std::string file, bool mustExist)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
+     bool retVal = true;
+     int lineCount = 0;
+     std::string line;
+@@ -146,6 +147,61 @@ bool Configuration::import(std::string collection, std::string keyPrefix, std::s
+     return retVal;
+ }
+ 
++void Configuration::addLazyCollection(std::string collection, std::string infoFile, std::string settingsFile)
++{
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
++    LazyCollection lazy;
++    lazy.name         = collection;
++    lazy.infoFile     = infoFile;
++    lazy.settingsFile = settingsFile;
++    lazyCollections_.push_back(lazy);
++}
++
++// StarFling: RetroFE used to read every collection's info.conf and
++// settings.conf at startup (22 collections, ~115 ms of SD card reads on
++// the RG Nano). Each collection is now read the first time one of its
++// keys is looked up, in the same order as before (info.conf, then
++// settings.conf), so its values are the same as with the eager import.
++void Configuration::loadLazyCollection(const std::string &key)
++{
++    static const std::string collectionsPrefix = "collections.";
++
++    if(lazyCollections_.empty() || key.compare(0, collectionsPrefix.size(), collectionsPrefix) != 0)
++    {
++        return;
++    }
++
++    for(size_t i = 0; i < lazyCollections_.size(); )
++    {
++        std::string prefix = collectionsPrefix + lazyCollections_[i].name + ".";
++
++        if(key.compare(0, prefix.size(), prefix) == 0)
++        {
++            LazyCollection lazy = lazyCollections_[i];
++            lazyCollections_.erase(lazyCollections_.begin() + i);
++
++            std::string keyPrefix = collectionsPrefix + lazy.name;
++            import(lazy.name, keyPrefix, lazy.infoFile, false);
++            if(!import(lazy.name, keyPrefix, lazy.settingsFile, false))
++            {
++                Logger::write(Logger::ZONE_INFO, "RetroFE", "Could not import \"" + lazy.settingsFile + "\"");
++            }
++        }
++        else
++        {
++            i++;
++        }
++    }
++}
++
++void Configuration::loadAllLazyCollections()
++{
++    while(!lazyCollections_.empty())
++    {
++        loadLazyCollection("collections." + lazyCollections_.front().name + ".");
++    }
++}
++
+ bool Configuration::importLayouts(std::string folder, std::string file, bool userLayout, bool mustExist)
+ {
+     bool retVal = true;
+@@ -424,8 +480,11 @@ std::string Configuration::trimEnds(std::string str)
+ 
+ bool Configuration::getRawProperty(std::string key, std::string &value)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
+     bool retVal = false;
+ 
++    loadLazyCollection(key);
++
+     if(properties_.find(key) != properties_.end())
+     {
+         value = properties_[key];
+@@ -492,18 +551,25 @@ bool Configuration::getProperty(std::string key, bool &value)
+ 
+ void Configuration::setProperty(std::string key, std::string value)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
++    loadLazyCollection(key);
+     properties_[key] = value;
+ }
+ 
+ bool Configuration::propertyExists(std::string key)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
++    loadLazyCollection(key);
+     return (properties_.find(key) != properties_.end());
+ }
+ 
+ bool Configuration::propertyPrefixExists(std::string key)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
+     PropertiesType::iterator it;
+ 
++    loadAllLazyCollections();
++
+     for(it = properties_.begin(); it != properties_.end(); ++it)
+     {
+         std::string search = key + ".";
+@@ -518,8 +584,11 @@ bool Configuration::propertyPrefixExists(std::string key)
+ 
+ void Configuration::childKeyCrumbs(std::string parent, std::vector<std::string> &children)
+ {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
+     PropertiesType::iterator it;
+ 
++    loadAllLazyCollections();
++
+     for(it = properties_.begin(); it != properties_.end(); ++it)
+     {
+         std::string search = parent + ".";
+diff --git a/RetroFE/Source/Database/Configuration.h b/RetroFE/Source/Database/Configuration.h
+index b2a86b0..994bfb5 100755
+--- a/RetroFE/Source/Database/Configuration.h
++++ b/RetroFE/Source/Database/Configuration.h
+@@ -18,6 +18,7 @@
+ #include <string>
+ #include <map>
+ #include <vector>
++#include <mutex>
+ 
+ class Configuration
+ {
+@@ -30,6 +31,9 @@ public:
+     // gets the global configuration
+     bool import(std::string keyPrefix, std::string file);
+     bool import(std::string collection, std::string keyPrefix, std::string file, bool mustExist = true);
++    // Registers a collection whose info.conf and settings.conf are read the
++    // first time one of its "collections.<name>." keys is looked up
++    void addLazyCollection(std::string collection, std::string infoFile, std::string settingsFile);
+     bool importLayouts(std::string folder, std::string file, bool userLayout=false, bool mustExist = true);
+     bool importCurrentLayout(std::string folder, std::string file, bool mustExist = true);
+     bool exportCurrentLayout(std::string layoutFilePath, std::string layoutName);
+@@ -59,4 +63,17 @@ private:
+ 
+     PropertiesType properties_;
+ 
++    void loadLazyCollection(const std::string &key);
++    void loadAllLazyCollections();
++    struct LazyCollection
++    {
++        std::string name;
++        std::string infoFile;
++        std::string settingsFile;
++    };
++    std::vector<LazyCollection> lazyCollections_;
++    // Lookups can now add keys, and RetroFE's init thread reads the
++    // configuration while the main thread loads the splash page
++    std::recursive_mutex mutex_;
++
+ };
+diff --git a/RetroFE/Source/Main.cpp b/RetroFE/Source/Main.cpp
+index 27bc831..7e19bc7 100755
+--- a/RetroFE/Source/Main.cpp
++++ b/RetroFE/Source/Main.cpp
+@@ -221,18 +221,11 @@ bool ImportConfiguration(Configuration *c)
+         std::string collection = (dirp->d_name);
+         if (dirp->d_type == DT_DIR && collection != "." && collection != ".." && collection.length() > 0 && collection[0] != '_')
+         {
+-            std::string prefix = "collections." + collection;
+-
+             std::string infoFile = Utils::combinePath(collectionsPath, collection, "info.conf");
+-
+-            c->import(collection, prefix, infoFile, false);
+-
+             std::string settingsFile = Utils::combinePath(collectionsPath, collection, "settings.conf");
+ 
+-            if(!c->import(collection, prefix, settingsFile, false))
+-            {
+-                Logger::write(Logger::ZONE_INFO, "RetroFE", "Could not import \"" + settingsFile + "\"");
+-            }
++            // StarFling: read on first use, see Configuration::loadLazyCollection
++            c->addLazyCollection(collection, infoFile, settingsFile);
+ 
+         }
+     }
