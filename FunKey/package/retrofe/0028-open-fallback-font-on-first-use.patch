@@ -1,0 +1,94 @@
+diff --git a/RetroFE/Source/Graphics/Font.cpp b/RetroFE/Source/Graphics/Font.cpp
+index dae51e1..c9c81ef 100755
+--- a/RetroFE/Source/Graphics/Font.cpp
++++ b/RetroFE/Source/Graphics/Font.cpp
+@@ -32,6 +32,7 @@ Font::Font(std::string fontPath, int fontSize, SDL_Color color)
+     : texture(NULL)
+     , primaryFont_(NULL)
+     , fallbackFont_(NULL)
++    , fallbackTried_(false)
+     , fontPath_(fontPath)
+     , fontSize_(fontSize)
+     , color_(color)
+@@ -89,6 +90,23 @@ unsigned int Font::nextCodepoint(const std::string &text, size_t &index)
+     return codepoint;
+ }
+ 
++TTF_Font *Font::fallbackFont()
++{
++    if(!fallbackTried_)
++    {
++        fallbackTried_ = true;
++        fallbackFont_ = TTF_OpenFont(FALLBACK_FONT_PATH, fontSize_);
++        if (!fallbackFont_)
++        {
++            Logger::write(Logger::ZONE_INFO, "FontCache",
++                    "No fallback font at " + std::string(FALLBACK_FONT_PATH) +
++                    "; text outside this font's own coverage will not draw");
++        }
++    }
++
++    return fallbackFont_;
++}
++
+ bool Font::addGlyph(unsigned int charCode)
+ {
+     /* TTF_RenderGlyph_Blended and TTF_GlyphIsProvided are UCS-2, so this
+@@ -105,7 +123,7 @@ bool Font::addGlyph(unsigned int charCode)
+     {
+         face = primaryFont_;
+     }
+-    else if(fallbackFont_ && TTF_GlyphIsProvided(fallbackFont_, (Uint16)charCode))
++    else if(fallbackFont() && TTF_GlyphIsProvided(fallbackFont_, (Uint16)charCode))
+     {
+         face = fallbackFont_;
+     }
+@@ -171,13 +189,10 @@ bool Font::initialize()
+     TTF_Font *font = TTF_OpenFont(fontPath_.c_str(), fontSize_);
+     primaryFont_ = font;
+ 
+-    fallbackFont_ = TTF_OpenFont(FALLBACK_FONT_PATH, fontSize_);
+-    if (!fallbackFont_)
+-    {
+-        Logger::write(Logger::ZONE_INFO, "FontCache",
+-                "No fallback font at " + std::string(FALLBACK_FONT_PATH) +
+-                "; text outside this font's own coverage will not draw");
+-    }
++    /* StarFling: the fallback face is opened in fallbackFont(), when a
++     * glyph first needs it. Opening it here cost ~19 ms per font at every
++     * RetroFE start (3 fonts with the GameBoy theme), and the menu's ASCII
++     * text never uses it. */
+ 
+     if (!font)
+     {
+@@ -320,6 +335,7 @@ void Font::deInitialize()
+         TTF_CloseFont(fallbackFont_);
+         fallbackFont_ = NULL;
+     }
++    fallbackTried_ = false;
+ }
+ 
+ 
+diff --git a/RetroFE/Source/Graphics/Font.h b/RetroFE/Source/Graphics/Font.h
+index 5e37d7c..484bca6 100755
+--- a/RetroFE/Source/Graphics/Font.h
++++ b/RetroFE/Source/Graphics/Font.h
+@@ -63,6 +63,10 @@ private:
+      * Used for everything the packed ASCII atlas does not already hold. */
+     bool addGlyph(unsigned int charCode);
+ 
++    /* fallbackFont_, opened the first time a glyph needs it. NULL when the
++     * file is missing; the open is tried only once. */
++    TTF_Font *fallbackFont();
++
+     //SDL_Texture *texture;
+     SDL_Surface *texture;
+     /* Both kept open past initialize() so glyphs can still be rendered on
+@@ -70,6 +74,7 @@ private:
+      * own font does not, and is allowed to be NULL. */
+     TTF_Font *primaryFont_;
+     TTF_Font *fallbackFont_;
++    bool fallbackTried_;
+     int height;
+     int ascent;
+     std::map<unsigned int, GlyphInfoBuild *> atlas;
