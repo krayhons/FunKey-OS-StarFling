@@ -1,0 +1,143 @@
+diff --git a/RetroFE/Source/SDL.cpp b/RetroFE/Source/SDL.cpp
+index 2653403..5b81504 100755
+--- a/RetroFE/Source/SDL.cpp
++++ b/RetroFE/Source/SDL.cpp
+@@ -51,6 +51,7 @@ SDL_Surface  *SDL::window_		  		= NULL;
+ SDL_Surface  *SDL::window_virtual_		= NULL;
+ SDL_Surface  *SDL::texture_copy_alpha_	= NULL;
+ SDL_mutex    *SDL::mutex_         = NULL;
++bool          SDL::audioPending_  = false;
+ int           SDL::displayWidth_  = 0;
+ int           SDL::displayHeight_ = 0;
+ int           SDL::windowWidth_   = 0;
+@@ -67,10 +68,6 @@ bool SDL::initialize( Configuration &config )
+     std::string hString;
+     std::string vString;
+     Uint32      windowFlags   = SDL_HWSURFACE | SDL_DOUBLEBUF;
+-    int         audioRate     = MIX_DEFAULT_FREQUENCY;
+-    Uint16      audioFormat   = MIX_DEFAULT_FORMAT; /* 16-bit stereo */
+-    int         audioChannels = 1;
+-    int         audioBuffers  = 4096;
+     bool        hideMouse;
+     const SDL_VideoInfo* videoInfo;
+ 
+@@ -260,11 +257,35 @@ bool SDL::initialize( Configuration &config )
+         }
+     }
+ 
++    // StarFling: the mixer opens when the first sound loads or plays
++    // (openAudioIfPending), not here: waiting for the amp warm-up here
++    // held the menu for up to ~0.2 s. Sounds load with the layout, after
++    // the warm-up is usually done.
++    audioPending_ = retVal;
++
++    return retVal;
++}
++
++
++// Opens the mixer if initialize left it for later. Called from the main
++// thread before any SDL_mixer use.
++void SDL::openAudioIfPending( )
++{
++    if ( !audioPending_ )
++    {
++        return;
++    }
++    audioPending_ = false;
++
++    int    audioRate     = MIX_DEFAULT_FREQUENCY;
++    Uint16 audioFormat   = MIX_DEFAULT_FORMAT; /* 16-bit stereo */
++    int    audioChannels = 1;
++    int    audioBuffers  = 4096;
++
+     // StarFling: the boot's amp warm-up (starfling-audio-init) holds the
+     // audio device for ~0.8 s after power-on, and opening it meanwhile
+-    // fails. Wait for its ready flag here rather than before starting
+-    // RetroFE: by now ~0.5 s of startup has passed, so there is usually
+-    // nothing left to wait for. Bounded, so audio never blocks the menu.
++    // fails. Wait for its ready flag. Bounded, so audio never blocks the
++    // menu for long.
+     for ( int i = 0; i < AUDIO_READY_WAIT_STEPS && access( AUDIO_READY_FLAG, F_OK ) != 0; i++ )
+     {
+         SDL_Delay( AUDIO_READY_WAIT_STEP_MS );
+@@ -273,7 +294,7 @@ bool SDL::initialize( Configuration &config )
+     // The warm-up sets its flag as its player exits, possibly just before
+     // the kernel releases the device, so retry briefly (also bounded).
+     bool audioOpen = false;
+-    for ( int i = 0; retVal && !audioOpen && i < AUDIO_OPEN_TRIES; i++ )
++    for ( int i = 0; !audioOpen && i < AUDIO_OPEN_TRIES; i++ )
+     {
+         if ( i > 0 )
+         {
+@@ -290,14 +311,12 @@ bool SDL::initialize( Configuration &config )
+         }
+     }
+ 
+-    if ( retVal && !audioOpen )
++    if ( !audioOpen )
+     {
+         std::string error = Mix_GetError( );
+         Logger::write( Logger::ZONE_WARNING, "SDL", "Audio initialize failed: " + error );
+     }
+ 
+-    return retVal;
+-
+ }
+ 
+ 
+@@ -307,6 +326,7 @@ bool SDL::deInitialize( )
+     std::string error = SDL_GetError( );
+     Logger::write( Logger::ZONE_INFO, "SDL", "DeInitializing" );
+ 
++    audioPending_ = false;
+     Mix_CloseAudio( );
+ 
+     while(Mix_Init(0))
+diff --git a/RetroFE/Source/SDL.h b/RetroFE/Source/SDL.h
+index bb0f47e..82fba23 100755
+--- a/RetroFE/Source/SDL.h
++++ b/RetroFE/Source/SDL.h
+@@ -35,6 +35,7 @@ class SDL
+ public:
+     static bool initialize( Configuration &config );
+     static bool deInitialize( );
++    static void openAudioIfPending( );
+     static SDL_mutex *getMutex( );
+     static SDL_Surface *getWindow( );
+     static void renderAndFlipWindow( );
+@@ -63,6 +64,7 @@ private:
+     static SDL_Surface 	*window_virtual_;
+     static SDL_Surface 	*texture_copy_alpha_;
+     static SDL_mutex    *mutex_;
++    static bool          audioPending_;
+     static int           displayWidth_;
+     static int           displayHeight_;
+     static int           windowWidth_;
+diff --git a/RetroFE/Source/Sound/Sound.cpp b/RetroFE/Source/Sound/Sound.cpp
+index b3122a8..d893928 100755
+--- a/RetroFE/Source/Sound/Sound.cpp
++++ b/RetroFE/Source/Sound/Sound.cpp
+@@ -18,6 +18,7 @@
+ 
+ #include "../Utility/Log.h"
+ #include "../Utility/Utils.h"
++#include "../SDL.h"
+ 
+ SDL_TimerID Sound::idTimer = 0;
+ int Sound::ampliStarted = 0;
+@@ -60,6 +61,7 @@ void Sound::play()
+     	}
+     }
+     
++    SDL::openAudioIfPending();
+     if(chunk_)
+     {
+         channel_ = Mix_PlayChannel(-1, chunk_, 0);
+@@ -107,6 +109,7 @@ bool Sound::allocate()
+     //printf("%s\n", __func__);
+     if(!chunk_)
+     {
++        SDL::openAudioIfPending();
+         chunk_ = Mix_LoadWAV(file_.c_str());
+     }
+ 
