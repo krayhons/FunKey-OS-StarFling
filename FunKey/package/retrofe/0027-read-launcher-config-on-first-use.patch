@@ -1,0 +1,169 @@
+diff --git a/RetroFE/Source/Database/Configuration.cpp b/RetroFE/Source/Database/Configuration.cpp
+index ad0890f..52c7f47 100755
+--- a/RetroFE/Source/Database/Configuration.cpp
++++ b/RetroFE/Source/Database/Configuration.cpp
+@@ -194,12 +194,64 @@ void Configuration::loadLazyCollection(const std::string &key)
+     }
+ }
+ 
+-void Configuration::loadAllLazyCollections()
++void Configuration::loadAllLazy()
+ {
+     while(!lazyCollections_.empty())
+     {
+         loadLazyCollection("collections." + lazyCollections_.front().name + ".");
+     }
++    while(!lazyLaunchers_.empty())
++    {
++        loadLazyLauncher("launchers." + lazyLaunchers_.begin()->first + ".");
++    }
++}
++
++void Configuration::addLazyLauncher(std::string launcher, std::string file)
++{
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
++    lazyLaunchers_[launcher] = file;
++}
++
++// StarFling: launcher files are only needed to start a game, but RetroFE
++// read all of them at startup (~45 ms on the RG Nano). A launcher's file
++// is now read the first time one of its keys is looked up. Nothing else
++// sets "launchers." keys, so the values are the same as before.
++void Configuration::loadLazyLauncher(const std::string &key)
++{
++    static const std::string launchersPrefix = "launchers.";
++
++    if(lazyLaunchers_.empty() || key.compare(0, launchersPrefix.size(), launchersPrefix) != 0)
++    {
++        return;
++    }
++
++    std::map<std::string, std::string>::iterator it = lazyLaunchers_.begin();
++    while(it != lazyLaunchers_.end())
++    {
++        std::string prefix = launchersPrefix + it->first + ".";
++
++        if(key.compare(0, prefix.size(), prefix) == 0)
++        {
++            std::string keyPrefix = launchersPrefix + it->first;
++            std::string file      = it->second;
++            it = lazyLaunchers_.erase(it);
++
++            if(!import(keyPrefix, file))
++            {
++                Logger::write(Logger::ZONE_ERROR, "RetroFE", "Could not import \"" + file + "\"");
++            }
++        }
++        else
++        {
++            ++it;
++        }
++    }
++}
++
++void Configuration::loadLazy(const std::string &key)
++{
++    loadLazyCollection(key);
++    loadLazyLauncher(key);
+ }
+ 
+ bool Configuration::importLayouts(std::string folder, std::string file, bool userLayout, bool mustExist)
+@@ -483,7 +535,7 @@ bool Configuration::getRawProperty(std::string key, std::string &value)
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
+     bool retVal = false;
+ 
+-    loadLazyCollection(key);
++    loadLazy(key);
+ 
+     if(properties_.find(key) != properties_.end())
+     {
+@@ -552,14 +604,14 @@ bool Configuration::getProperty(std::string key, bool &value)
+ void Configuration::setProperty(std::string key, std::string value)
+ {
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
+-    loadLazyCollection(key);
++    loadLazy(key);
+     properties_[key] = value;
+ }
+ 
+ bool Configuration::propertyExists(std::string key)
+ {
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
+-    loadLazyCollection(key);
++    loadLazy(key);
+     return (properties_.find(key) != properties_.end());
+ }
+ 
+@@ -568,7 +620,7 @@ bool Configuration::propertyPrefixExists(std::string key)
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
+     PropertiesType::iterator it;
+ 
+-    loadAllLazyCollections();
++    loadAllLazy();
+ 
+     for(it = properties_.begin(); it != properties_.end(); ++it)
+     {
+@@ -587,7 +639,7 @@ void Configuration::childKeyCrumbs(std::string parent, std::vector<std::string>
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
+     PropertiesType::iterator it;
+ 
+-    loadAllLazyCollections();
++    loadAllLazy();
+ 
+     for(it = properties_.begin(); it != properties_.end(); ++it)
+     {
+diff --git a/RetroFE/Source/Database/Configuration.h b/RetroFE/Source/Database/Configuration.h
+index 994bfb5..7c4c926 100755
+--- a/RetroFE/Source/Database/Configuration.h
++++ b/RetroFE/Source/Database/Configuration.h
+@@ -34,6 +34,8 @@ public:
+     // Registers a collection whose info.conf and settings.conf are read the
+     // first time one of its "collections.<name>." keys is looked up
+     void addLazyCollection(std::string collection, std::string infoFile, std::string settingsFile);
++    // Same for a launcher's .conf file and its "launchers.<name>." keys
++    void addLazyLauncher(std::string launcher, std::string file);
+     bool importLayouts(std::string folder, std::string file, bool userLayout=false, bool mustExist = true);
+     bool importCurrentLayout(std::string folder, std::string file, bool mustExist = true);
+     bool exportCurrentLayout(std::string layoutFilePath, std::string layoutName);
+@@ -64,7 +66,9 @@ private:
+     PropertiesType properties_;
+ 
+     void loadLazyCollection(const std::string &key);
+-    void loadAllLazyCollections();
++    void loadAllLazy();
++    void loadLazyLauncher(const std::string &key);
++    void loadLazy(const std::string &key);
+     struct LazyCollection
+     {
+         std::string name;
+@@ -72,6 +76,7 @@ private:
+         std::string settingsFile;
+     };
+     std::vector<LazyCollection> lazyCollections_;
++    std::map<std::string, std::string> lazyLaunchers_;
+     // Lookups can now add keys, and RetroFE's init thread reads the
+     // configuration while the main thread loads the splash page
+     std::recursive_mutex mutex_;
+diff --git a/RetroFE/Source/Main.cpp b/RetroFE/Source/Main.cpp
+index 7e19bc7..d83f54f 100755
+--- a/RetroFE/Source/Main.cpp
++++ b/RetroFE/Source/Main.cpp
+@@ -192,16 +192,10 @@ bool ImportConfiguration(Configuration *c)
+ 
+             if(extension == ".conf")
+             {
+-                std::string prefix = "launchers." + basename;
+-
+                 std::string importFile = Utils::combinePath(launchersPath, std::string(dirp->d_name));
+ 
+-                if(!c->import(prefix, importFile))
+-                {
+-                    Logger::write(Logger::ZONE_ERROR, "RetroFE", "Could not import \"" + importFile + "\"");
+-                    closedir(dp);
+-                    return false;
+-                }
++                // StarFling: read on first use, see Configuration::loadLazyLauncher
++                c->addLazyLauncher(basename, importFile);
+             }
+         }
+     }
