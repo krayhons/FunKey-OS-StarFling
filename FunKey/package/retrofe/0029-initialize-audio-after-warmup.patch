@@ -1,0 +1,55 @@
+diff --git a/RetroFE/Source/SDL.cpp b/RetroFE/Source/SDL.cpp
+index 65efb4d..2653403 100755
+--- a/RetroFE/Source/SDL.cpp
++++ b/RetroFE/Source/SDL.cpp
+@@ -24,6 +24,8 @@
+ #define AUDIO_READY_FLAG          "/run/starfling-audio-ready"
+ #define AUDIO_READY_WAIT_STEP_MS  10
+ #define AUDIO_READY_WAIT_STEPS    150
++#define AUDIO_OPEN_RETRY_MS       10
++#define AUDIO_OPEN_TRIES          30
+ //#include <SDL/SDL_rotozoom.h>
+ //#include <SDL/SDL_gfxBlitFunc.h>
+ 
+@@ -73,7 +75,11 @@ bool SDL::initialize( Configuration &config )
+     const SDL_VideoInfo* videoInfo;
+ 
+     Logger::write( Logger::ZONE_INFO, "SDL", "Initializing" );
+-    if (retVal && SDL_Init( SDL_INIT_EVERYTHING ) != 0)
++    // StarFling: audio is left out here and initialized after the amp
++    // warm-up (below). SDL 1.2 picks its audio driver at init by probing
++    // /dev/dsp; while the warm-up holds the device the probe fails, and
++    // every later open then failed too (no menu sounds).
++    if (retVal && SDL_Init( SDL_INIT_EVERYTHING & ~SDL_INIT_AUDIO ) != 0)
+     {
+         std::string error = SDL_GetError( );
+         Logger::write( Logger::ZONE_ERROR, "SDL", "Initialize failed: " + error );
+@@ -264,7 +270,27 @@ bool SDL::initialize( Configuration &config )
+         SDL_Delay( AUDIO_READY_WAIT_STEP_MS );
+     }
+ 
+-    if ( retVal && Mix_OpenAudio( audioRate, audioFormat, audioChannels, audioBuffers ) == -1 )
++    // The warm-up sets its flag as its player exits, possibly just before
++    // the kernel releases the device, so retry briefly (also bounded).
++    bool audioOpen = false;
++    for ( int i = 0; retVal && !audioOpen && i < AUDIO_OPEN_TRIES; i++ )
++    {
++        if ( i > 0 )
++        {
++            SDL_Delay( AUDIO_OPEN_RETRY_MS );
++        }
++        if ( SDL_InitSubSystem( SDL_INIT_AUDIO ) != 0 )
++        {
++            continue;
++        }
++        audioOpen = ( Mix_OpenAudio( audioRate, audioFormat, audioChannels, audioBuffers ) == 0 );
++        if ( !audioOpen )
++        {
++            SDL_QuitSubSystem( SDL_INIT_AUDIO );
++        }
++    }
++
++    if ( retVal && !audioOpen )
+     {
+         std::string error = Mix_GetError( );
+         Logger::write( Logger::ZONE_WARNING, "SDL", "Audio initialize failed: " + error );
