@@ -1,0 +1,55 @@
+picoarch: open sound after the core reports its rate
+
+plat_init opened sound before the core and content loaded, so its wait
+for the amp warm-up (patch 0002) held a resumed game's start, and
+plat_reinit reopened sound at the core's sample rate anyway. On
+FunKey, plat_init no longer opens it; plat_reinit opens it when it is
+not open yet.
+
+--- a/plat_sdl.c
++++ b/plat_sdl.c
+@@ -345,8 +345,11 @@
+ 	}
+ }
+ 
++static int sound_open;
++
+ static void plat_sound_finish(void)
+ {
++	sound_open = 0;
+ 	SDL_PauseAudio(1);
+ 	SDL_CloseAudio();
+ 	if (audio.buf) {
+@@ -406,6 +409,7 @@
+ 	plat_sound_resize_buffer();
+ 
+ 	SDL_PauseAudio(0);
++	sound_open = 1;
+ 	return 0;
+ }
+ 
+@@ -565,16 +569,23 @@
+ 	}
+ 	in_probe();
+ 
++#ifdef FUNKEY_S
++	/* StarFling: sound opens in plat_reinit, once the core has reported its
++	 * sample rate. Opened here, it waited for the amp warm-up before the
++	 * core and content even started loading (~0.3 s of a resumed game's
++	 * start), and plat_reinit reopened it at the core's rate anyway. */
++#else
+ 	if (plat_sound_init()) {
+ 		PA_ERROR("SDL sound failed to init: %s\n", SDL_GetError());
+ 		return -1;
+ 	}
++#endif
+ 	return 0;
+ }
+ 
+ int plat_reinit(void)
+ {
+-	if (sample_rate && sample_rate != audio.in_sample_rate) {
++	if (!sound_open || (sample_rate && sample_rate != audio.in_sample_rate)) {
+ 		plat_sound_finish();
+ 
+ 		if (plat_sound_init()) {
