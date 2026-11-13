@@ -31,8 +31,32 @@ unmount_share () {
 ensure_dirs () {
     local base="${1}"
     shift
+
+    # List the base directory once and look the names up in that list. On
+    # the FAT share, [ -d ] on a subdirectory reads that directory's
+    # cluster chain from the SD card: ~4.5 ms per name cold, 185 ms of
+    # every boot for the two calls in mount_share. A glob only reads the
+    # base directory itself (StarFling 1.3).
+    local nl='
+'
+    local present="${nl}"
+    local entry
+    for entry in "${base}"/*; do
+	present="${present}${entry##*/}${nl}"
+    done
+
+    # A nested name ("Libretro/cores") still gets [ -d ]: only its first
+    # component is in the list
     local dir
     for dir in "$@"; do
+	case "${dir}" in
+	    */*) ;;
+	    *)
+		case "${present}" in
+		    *"${nl}${dir}${nl}"*) continue ;;
+		esac
+		;;
+	esac
 	[ -d "${base}/${dir}" ] || mkdir -p "${base}/${dir}"
     done
 }
